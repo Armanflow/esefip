@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESEFIP - Iniciar Sesión</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/supabase.js"></script>
+    <style>
+        :root {
+            --primary: #D4A017; --primary-dark: #b8860b;
+            --secondary: #0a1628; --accent: #1a3a6b;
+            --text: #f8fafc; --text-muted: #94a3b8;
+            --error: #ef4444; --border: rgba(255,255,255,0.1);
+            --card: rgba(10,22,40,0.95);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a3a6b 50%, #0a1628 100%);
+            min-height: 100vh; display: flex; align-items: center;
+            justify-content: center; padding: 20px; overflow: hidden;
+        }
+        body::before {
+            content: ''; position: fixed; inset: 0;
+            background: radial-gradient(ellipse at 30% 20%, rgba(212,160,23,0.12) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 80%, rgba(26,58,107,0.4) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .particles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+        .particle {
+            position: absolute; width: 2px; height: 2px;
+            background: rgba(212,160,23,0.4); border-radius: 50%;
+            animation: float linear infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; } 90% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+        .login-wrapper { position: relative; z-index: 10; width: 100%; max-width: 440px; }
+        .login-card {
+            background: var(--card); backdrop-filter: blur(20px);
+            border: 1px solid rgba(212,160,23,0.2); border-radius: 24px;
+            padding: clamp(30px,5vw,48px);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,160,23,0.05);
+            animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes cardIn {
+            from { opacity:0; transform: translateY(30px) scale(0.95); }
+            to   { opacity:1; transform: translateY(0) scale(1); }
+        }
+        .logo-area { text-align: center; margin-bottom: 32px; }
+        .logo-icon {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 20px; display: inline-flex; align-items: center;
+            justify-content: center; font-size: 36px; margin-bottom: 16px;
+            box-shadow: 0 8px 32px rgba(212,160,23,0.3);
+        }
+        .logo-title {
+            font-size: 28px; font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), #f0c040);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; letter-spacing: 2px; margin-bottom: 4px;
+        }
+        .logo-subtitle { color: var(--text-muted); font-size: 13px; }
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent);
+            margin: 24px 0;
+        }
+        .form-title { font-size: 18px; font-weight: 600; color: var(--text); text-align: center; margin-bottom: 24px; }
+        .input-group { margin-bottom: 18px; }
+        .input-group label { display: block; color: var(--text-muted); font-size: 13px; font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--primary); font-size: 16px; }
+        .input-wrapper input {
+            width: 100%; padding: 15px 16px 15px 46px;
+            background: rgba(255,255,255,0.05); border: 1.5px solid var(--border);
+            border-radius: 12px; color: var(--text); font-size: 16px; transition: all 0.2s;
+        }
+        .input-wrapper input:focus { outline: none; border-color: var(--primary); background: rgba(212,160,23,0.05); box-shadow: 0 0 0 4px rgba(212,160,23,0.1); }
+        .input-wrapper input::placeholder { color: rgba(148,163,184,0.5); }
+        .toggle-pass { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 15px; transition: color 0.2s; }
+        .toggle-pass:hover { color: var(--primary); }
+        .error-msg {
+            background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 10px; padding: 12px 16px; color: #fca5a5; font-size: 14px;
+            display: none; align-items: center; gap: 8px; margin-bottom: 18px;
+            animation: shake 0.4s ease;
+        }
+        .error-msg.show { display: flex; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+        .btn-login {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none; border-radius: 12px; color: #0a1628;
+            font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 4px 20px rgba(212,160,23,0.3);
+        }
+        .btn-login:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(212,160,23,0.5); }
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+        .login-roles { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .role-hint {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .role-hint:hover { border-color: rgba(212,160,23,0.4); background: rgba(212,160,23,0.05); }
+        .role-hint i { color: var(--primary); font-size: 20px; display: block; margin-bottom: 4px; }
+        .role-hint span { color: var(--text-muted); font-size: 12px; display: block; }
+        .role-hint strong { color: var(--text); font-size: 13px; }
+        .footer-note { text-align: center; margin-top: 24px; color: rgba(148,163,184,0.5); font-size: 12px; }
+        @media (max-width: 480px) { .login-card { border-radius: 16px; } .login-roles { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="particles" id="particles"></div>
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="logo-area">
+            <div class="logo-icon">🛡️</div>
+            <div class="logo-title">ESEFIP</div>
+            <div class="logo-subtitle">Empresa de Seguridad Física Privada</div>
+        </div>
+        <div class="divider"></div>
+        <div class="form-title">Acceso al Sistema</div>
+        <div class="error-msg" id="errorMsg">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorText">Cédula o contraseña incorrectos.</span>
+        </div>
+        <div class="input-group">
+            <label>Cédula de Identidad</label>
+            <div class="input-wrapper">
+                <i class="fas fa-id-card"></i>
+                <input type="text" id="cedula" placeholder="Ej: 12345678" autocomplete="username">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Contraseña</label>
+            <div class="input-wrapper">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+                <button type="button" class="toggle-pass" onclick="togglePass()">
+                    <i class="fas fa-eye" id="eyeIcon"></i>
+                </button>
+            </div>
+        </div>
+        <button class="btn-login" id="loginBtn" onclick="doLogin()">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Ingresar al Sistema</span>
+        </button>
+        <div class="login-roles">
+            <div class="role-hint" onclick="fillDemo('12345678','admin123')">
+                <i class="fas fa-user-shield"></i>
+                <strong>Administrador</strong>
+                <span>Panel completo</span>
+            </div>
+            <div class="role-hint" onclick="fillDemo('87654321','guardia123')">
+                <i class="fas fa-user-lock"></i>
+                <strong>Guardia</strong>
+                <span>Panel de servicio</span>
+            </div>
+        </div>
+        <div class="footer-note">
+            <i class="fas fa-shield-alt"></i> Sistema Seguro ESEFIP v2.0 &nbsp;•&nbsp;
+            <i class="fas fa-lock"></i> Powered by Supabase
+        </div>
+    </div>
+</div>
+
+<script>
+    // Redirigir si ya hay sesión
+    const _u = Auth.get();
+    if (_u) location.href = _u.rol === 'admin' ? 'admin/dashboard.html' : 'guardia/panel.html';
+
+    // Partículas
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 25; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.cssText = `left:${Math.random()*100}%;width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s;opacity:${Math.random()*0.6+0.2}`;
+        container.appendChild(p);
+    }
+
+    function togglePass() {
+        const inp = document.getElementById('password');
+        const ico = document.getElementById('eyeIcon');
+        if (inp.type === 'password') { inp.type = 'text'; ico.classList.replace('fa-eye','fa-eye-slash'); }
+        else { inp.type = 'password'; ico.classList.replace('fa-eye-slash','fa-eye'); }
+    }
+
+    function fillDemo(cedula, pass) {
+        document.getElementById('cedula').value = cedula;
+        document.getElementById('password').value = pass;
+    }
+
+    // Enter key
+    document.getElementById('password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('cedula').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('password').focus();
+    });
+
+    async function doLogin() {
+        const cedula   = document.getElementById('cedula').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const btn      = document.getElementById('loginBtn');
+        const errMsg   = document.getElementById('errorMsg');
+        const errText  = document.getElementById('errorText');
+
+        errMsg.classList.remove('show');
+
+        if (!cedula || !password) {
+            errText.textContent = 'Complete todos los campos.';
+            errMsg.classList.add('show');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Verificando...</span>';
+
+        try {
+            const usuario = await AdminAPI.login(cedula, password);
+            if (usuario) {
+                Auth.save(usuario);
+                location.href = usuario.rol === 'admin' ? 'admin/dashboard.html' : 'guardia/panel.html';
+            } else {
+                errText.textContent = 'Cédula o contraseña incorrectos.';
+                errMsg.classList.add('show');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Ingresar al Sistema</span>';
+            }
+        } catch(e) {
+            errText.textContent = 'Error de conexión: ' + e.message;
+            errMsg.classList.add('show');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Ingresar al Sistema</span>';
+        }
+    }
+</script>
+</body>
+</html>
