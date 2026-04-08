@@ -6,7 +6,7 @@
 const SUPABASE_URL = 'https://fbipglkpuzcpgveceanc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_DmnnuUFe_6NCj3NGkxG6hQ_IHrrS_64';
 
-const TELEGRAM_BOT  = '7279824834:AAFjsSx9qg9evm1tv2iQFcKvOe7Rv6lPAos';
+const TELEGRAM_BOT  = '7279824834:AAFjsSx9qg9eym1tv2iQFcKvOe7Rv6lPAos';
 const TELEGRAM_CHAT = '1425131487';
 
 const STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/esefip-uploads/`;
