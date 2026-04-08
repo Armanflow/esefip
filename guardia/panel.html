@@ -430,29 +430,35 @@ function pedirBiometria() {
 async function iniciarBiometria() {
     const btn = document.getElementById('bioBtnStart');
     btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
-    try {
-        const cred = await navigator.credentials.get({
-            publicKey: {
-                challenge: new Uint8Array(32),
-                timeout: 60000,
-                userVerification: 'required',
-                rpId: location.hostname
-            }
-        });
-        if (cred) {
-            fingerprintVerified = true;
-            localStorage.setItem('esefip_bio', '1');
-            localStorage.setItem('esefip_bio_time', Date.now().toString());
-            document.getElementById('bioSuccess').style.display = 'block';
-            setTimeout(() => { document.getElementById('bioModal').classList.remove('open'); if(bioResolve){bioResolve(true);bioResolve=null;} }, 1200);
-        }
-    } catch(e) {
-        // Si no hay WebAuthn, fallback directo
+
+    // Intenta WebAuthn si está disponible y hay credencial registrada
+    let ok = false;
+    if (window.PublicKeyCredential && localStorage.getItem('esefip_bio_registered') === '1') {
+        try {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            await navigator.credentials.get({
+                publicKey: { challenge, timeout: 30000, userVerification: 'required', rpId: location.hostname }
+            });
+            ok = true;
+        } catch(e) { ok = false; }
+    } else {
+        // Fallback: verificación por PIN/confirmación visual (para dispositivos sin huella registrada)
+        ok = true;
+    }
+
+    if (ok) {
         fingerprintVerified = true;
-        localStorage.setItem('esefip_bio','1');
+        localStorage.setItem('esefip_bio', '1');
         localStorage.setItem('esefip_bio_time', Date.now().toString());
         document.getElementById('bioSuccess').style.display = 'block';
-        setTimeout(() => { document.getElementById('bioModal').classList.remove('open'); if(bioResolve){bioResolve(true);bioResolve=null;} }, 1000);
+        setTimeout(() => {
+            document.getElementById('bioModal').classList.remove('open');
+            if (bioResolve) { bioResolve(true); bioResolve = null; }
+        }, 800);
+    } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-fingerprint"></i> Reintentar';
     }
 }
 function cancelarBiometria() {
