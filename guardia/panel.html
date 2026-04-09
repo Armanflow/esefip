@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a1628">
+    <title>ESEFIP - Panel Guardia</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../js/supabase.js"></script>
+    <style>
+        :root{--primary:#D4A017;--primary-dark:#b8860b;--bg:#080f1a;--bg2:#0a1628;--accent:#1a3a6b;--text:#f1f5f9;--text-muted:#94a3b8;--border:rgba(212,160,23,0.15);--success:#10b981;--error:#ef4444;--card:rgba(10,22,40,0.95);--radius:16px}
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px}
+        .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+        .topbar-brand{display:flex;align-items:center;gap:10px}
+        .brand-logo{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+        .brand-name{font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--primary),#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .brand-role{font-size:11px;color:var(--text-muted)}
+        .topbar-user{display:flex;align-items:center;gap:8px}
+        .user-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#2a4a8b);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:14px}
+        .user-name{font-size:13px;font-weight:600}
+        .user-ci{font-size:11px;color:var(--text-muted)}
+        .btn-logout{padding:7px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#fca5a5;font-size:12px;cursor:pointer}
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);display:flex;z-index:100}
+        .nav-tab{flex:1;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-muted);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;border:none;background:none}
+        .nav-tab i{font-size:20px;transition:transform .2s}
+        .nav-tab.active{color:var(--primary)}
+        .nav-tab.active i{transform:scale(1.15)}
+        .panel{display:none;padding:20px}
+        .panel.active{display:block}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+        .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+        .card-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .card-title i{color:var(--primary)}
+        .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+        .status-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;position:relative;overflow:hidden}
+        .status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+        .status-card.green::before{background:linear-gradient(90deg,#10b981,#059669)}
+        .status-card.blue::before{background:linear-gradient(90deg,#3b82f6,#1d4ed8)}
+        .status-icon{font-size:28px;margin-bottom:8px}
+        .status-value{font-size:24px;font-weight:800}
+        .status-label{font-size:12px;color:var(--text-muted)}
+        .clock-card{background:linear-gradient(135deg,rgba(212,160,23,0.1),rgba(26,58,107,0.3));border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:16px}
+        .clock-time{font-size:clamp(36px,10vw,52px);font-weight:800;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,var(--text),var(--primary));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .clock-date{font-size:14px;color:var(--text-muted);margin-top:4px}
+        .btn{width:100%;padding:16px;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+        .btn-entrada{background:linear-gradient(135deg,#10b981,#059669);color:white;box-shadow:0 4px 20px rgba(16,185,129,0.3)}
+        .btn-salida{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;box-shadow:0 4px 20px rgba(239,68,68,0.3)}
+        .btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#0a1628;box-shadow:0 4px 20px rgba(212,160,23,0.3)}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .btn-gap{margin-top:12px}
+        .geo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .geo-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px}
+        .geo-icon{width:32px;height:32px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:14px;flex-shrink:0}
+        .geo-label{font-size:11px;color:var(--text-muted)}
+        .geo-value{font-size:13px;font-weight:500}
+        .alert{padding:12px 16px;border-radius:10px;margin-bottom:14px;font-size:14px;display:none;align-items:center;gap:8px}
+        .alert.show{display:flex}
+        .alert-success{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#34d399}
+        .alert-error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5}
+        .alert-info{background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd}
+        .hist-item{padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:flex-start;gap:10px}
+        .hist-item:last-child{border-bottom:none}
+        .hist-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px}
+        .hist-dot.entrada{background:var(--success)}
+        .hist-dot.salida{background:var(--error)}
+        .hist-dot.ronda{background:var(--primary)}
+        .hist-main{font-size:14px;font-weight:500}
+        .hist-sub{font-size:12px;color:var(--text-muted)}
+        .pago-hero{background:linear-gradient(135deg,rgba(212,160,23,0.15),rgba(26,58,107,0.2));border:1px solid rgba(212,160,23,0.3);border-radius:20px;padding:28px;text-align:center;margin-bottom:16px}
+        .pago-amount{font-size:clamp(40px,12vw,56px);font-weight:900;background:linear-gradient(135deg,var(--primary),#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .pago-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+        .pago-detail-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center}
+        .pago-detail-value{font-size:20px;font-weight:700;margin-bottom:2px}
+        .pago-detail-label{font-size:12px;color:var(--text-muted)}
+        .scan-result{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius);padding:16px;margin-top:12px;display:none}
+        .scan-result h4{color:#34d399;margin-bottom:10px}
+        /* Cámara */
+        .cam-modal{display:none;position:fixed;inset:0;background:#000;z-index:600;flex-direction:column}
+        .cam-modal.open{display:flex}
+        #camVideo{width:100%;height:100%;object-fit:cover}
+        #camCanvas{display:none}
+        .cam-topbar{background:rgba(0,0,0,0.8);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:absolute;top:0;left:0;right:0;z-index:10}
+        .cam-title{color:var(--primary);font-weight:700;font-size:16px}
+        .cam-close{background:rgba(239,68,68,0.3);border:none;color:#fca5a5;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px}
+        .cam-overlay{position:absolute;inset:0;pointer-events:none}
+        .cam-guide{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);width:200px;height:260px;border:3px solid var(--primary);border-radius:50% 50% 45% 45%;box-shadow:0 0 0 2000px rgba(0,0,0,0.5)}
+        .cam-guide-text{position:absolute;top:50%;left:50%;transform:translate(-50%,80px);color:white;font-size:13px;text-align:center;width:220px}
+        .cam-info-bar{position:absolute;bottom:120px;left:0;right:0;background:rgba(0,0,0,0.7);padding:10px 20px}
+        .cam-info-bar span{color:white;font-size:12px;display:block}
+        .cam-info-bar strong{color:var(--primary)}
+        .cam-btn-bar{position:absolute;bottom:30px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:24px}
+        .cam-capture-btn{width:72px;height:72px;border-radius:50%;background:white;border:5px solid var(--primary);cursor:pointer}
+        .cam-flip-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:white;font-size:20px;cursor:pointer}
+        .cam-preview{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000;padding:20px}
+        .cam-preview.show{display:flex}
+        #fotoPreviewImg{width:100%;max-width:360px;border-radius:14px;border:2px solid var(--primary)}
+        .cam-preview-btns{display:flex;gap:12px;margin-top:20px;width:100%;max-width:360px}
+        .cam-preview-btns button{flex:1;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer}
+        .btn-retomar{background:rgba(255,255,255,0.1);color:white}
+        .btn-enviar{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#0a1628}
+        /* Biometría */
+        .bio-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(10px);z-index:500;align-items:center;justify-content:center;padding:20px}
+        .bio-modal.open{display:flex}
+        .bio-box{background:linear-gradient(135deg,rgba(212,160,23,0.15),rgba(26,58,107,0.2));border:2px solid var(--primary);border-radius:28px;padding:clamp(30px,8vw,50px);text-align:center;max-width:360px;width:100%;animation:bioPulse 1.5s ease-in-out infinite}
+        @keyframes bioPulse{0%,100%{box-shadow:0 0 0 0 rgba(212,160,23,0.3)}50%{box-shadow:0 0 0 20px rgba(212,160,23,0)}}
+        .bio-icon{font-size:clamp(56px,15vw,80px);color:var(--primary);margin-bottom:16px;display:block;animation:bioIconPulse 1s ease-in-out infinite}
+        @keyframes bioIconPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+        .bio-title{font-size:clamp(18px,5vw,24px);font-weight:700;margin-bottom:8px}
+        .bio-desc{color:var(--text-muted);font-size:14px;margin-bottom:24px}
+        .bio-btns{display:flex;gap:12px;justify-content:center}
+        .bio-btn{padding:12px 22px;border-radius:30px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+        .bio-btn-start{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#0a1628}
+        .bio-btn-cancel{background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)}
+        /* QR Scanner */
+        .qr-area{position:relative;background:#000;border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+        #qrVideo{width:100%;display:none;border-radius:var(--radius)}
+        .scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+        .scan-frame{width:200px;height:200px;border:3px solid var(--primary);border-radius:16px;position:relative;box-shadow:0 0 0 2000px rgba(0,0,0,0.5)}
+        .scan-frame::before{content:'';position:absolute;width:100%;height:2px;background:var(--primary);animation:scanLine 2s ease-in-out infinite}
+        @keyframes scanLine{0%{top:0}100%{top:198px}}
+        #qrCanvas{display:none}
+        /* Novedad FAB */
+        .fab-novedad{position:fixed;right:20px;bottom:90px;width:58px;height:58px;background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:50%;border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(239,68,68,0.5);z-index:200;display:flex;align-items:center;justify-content:center;animation:fabPulse 2s ease-in-out infinite}
+        @keyframes fabPulse{0%,100%{box-shadow:0 4px 20px rgba(239,68,68,0.5)}50%{box-shadow:0 4px 30px rgba(239,68,68,0.8)}}
+        /* Modal novedad */
+        .nov-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(6px);z-index:700;align-items:flex-end;justify-content:center}
+        .nov-modal.open{display:flex}
+        .nov-box{background:#0d1e35;border:1px solid var(--border);border-radius:24px 24px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;animation:slideUp .3s ease;max-height:90vh;overflow-y:auto}
+        @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+        .nov-foto-wrap{position:relative;width:100%;height:200px;background:rgba(255,255,255,0.04);border:2px dashed rgba(239,68,68,0.3);border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:14px}
+        .nov-foto-wrap img{width:100%;height:100%;object-fit:cover;display:none}
+        .nov-foto-placeholder{text-align:center;color:var(--text-muted)}
+        .nov-foto-placeholder i{font-size:36px;color:rgba(239,68,68,0.5);display:block;margin-bottom:8px}
+        .nov-audio-wrap{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px}
+        .nov-desc{width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;resize:vertical;min-height:80px;margin-bottom:14px}
+        .nov-desc:focus{outline:none;border-color:var(--error)}
+        .nov-send-btn{width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+        .nov-send-btn:disabled{opacity:.6}
+        .nov-alert{padding:10px 14px;border-radius:10px;font-size:13px;display:none;margin-bottom:14px}
+        .nov-alert.show{display:block}
+        .nov-alert.ok{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)}
+        .nov-alert.err{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)}
+        .nov-alert.inf{background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)}
+        @media(max-width:380px){.status-grid,.geo-grid,.pago-detail-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-brand">
+        <div class="brand-logo">🛡️</div>
+        <div><div class="brand-name">ESEFIP</div><div class="brand-role">Panel Guardia</div></div>
+    </div>
+    <div class="topbar-user">
+        <div class="user-avatar" id="userAvatar">G</div>
+        <div style="display:none" id="userInfo">
+            <div class="user-name" id="userName">—</div>
+            <div class="user-ci" id="userCi">—</div>
+        </div>
+        <button class="btn-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+</div>
+
+<!-- PANEL ASISTENCIA -->
+<div id="panel-asistencia" class="panel active">
+    <div class="clock-card">
+        <div class="clock-time" id="clockTime">00:00:00</div>
+        <div class="clock-date" id="clockDate"></div>
+    </div>
+    <div class="status-grid">
+        <div class="status-card green"><div class="status-icon">🟢</div><div class="status-value" id="statEntradas">—</div><div class="status-label">Entradas Hoy</div></div>
+        <div class="status-card blue"><div class="status-icon">🔵</div><div class="status-value" id="statRondas">—</div><div class="status-label">Rondas Hoy</div></div>
+    </div>
+    <div class="card" id="bioStatus" style="display:none">
+        <div class="card-title"><i class="fas fa-fingerprint"></i> Biometría Verificada</div>
+        <div style="color:var(--success);font-size:13px;margin-top:4px" id="bioTimeText"></div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><i class="fas fa-map-marker-alt"></i> Ubicación GPS</div>
+            <span id="gpsBadge" style="font-size:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Buscando...</span>
+        </div>
+        <div class="geo-grid">
+            <div class="geo-item"><div class="geo-icon"><i class="fas fa-road"></i></div><div><div class="geo-label">Dirección</div><div class="geo-value" id="gDireccion">—</div></div></div>
+            <div class="geo-item"><div class="geo-icon"><i class="fas fa-map-pin"></i></div><div><div class="geo-label">Zona</div><div class="geo-value" id="gZona">—</div></div></div>
+            <div class="geo-item"><div class="geo-icon"><i class="fas fa-city"></i></div><div><div class="geo-label">Ciudad</div><div class="geo-value" id="gCiudad">—</div></div></div>
+            <div class="geo-item"><div class="geo-icon"><i class="fas fa-globe"></i></div><div><div class="geo-label">Precisión</div><div class="geo-value" id="gPrecision">—</div></div></div>
+        </div>
+    </div>
+    <div id="alertAsist" class="alert"></div>
+    <button class="btn btn-entrada" onclick="iniciarFlujoAsistencia('entrada')"><i class="fas fa-sign-in-alt"></i> Marcar Entrada</button>
+    <button class="btn btn-salida btn-gap" onclick="iniciarFlujoAsistencia('salida')"><i class="fas fa-sign-out-alt"></i> Marcar Salida</button>
+    <div class="card" style="margin-top:16px">
+        <div class="card-header">
+            <div class="card-title"><i class="fas fa-history"></i> Registros de Hoy</div>
+            <button onclick="loadAsistenciasHoy()" style="background:none;border:none;color:var(--primary);cursor:pointer"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div id="histAsist"><div style="text-align:center;color:var(--text-muted);padding:20px"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+</div>
+
+<!-- PANEL RONDAS -->
+<div id="panel-rondas" class="panel">
+    <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fas fa-qrcode"></i> Escanear Punto QR</div></div>
+        <div class="qr-area" style="height:260px">
+            <video id="qrVideo" autoplay playsinline muted style="width:100%;height:260px;object-fit:cover;display:none"></video>
+            <canvas id="qrCanvas" style="display:none"></canvas>
+            <div class="scan-overlay"><div class="scan-frame"></div></div>
+            <div id="qrPlaceholder" style="display:flex;align-items:center;justify-content:center;height:260px;color:var(--text-muted);flex-direction:column;gap:8px"><i class="fas fa-qrcode" style="font-size:40px;color:var(--primary)"></i><span style="font-size:14px">Presiona iniciar para escanear</span></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+            <button class="btn btn-primary" id="btnIniciarQR" onclick="iniciarQR()" style="flex:1;padding:12px"><i class="fas fa-camera"></i> Iniciar Cámara</button>
+            <button class="btn" style="flex:1;padding:12px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)" onclick="document.getElementById('qrGaleriaInput').click()"><i class="fas fa-images"></i> Desde Galería</button>
+        </div>
+        <input type="file" id="qrGaleriaInput" accept="image/*" style="display:none" onchange="escanearDesdeGaleria(this)">
+        <div id="scanResult" class="scan-result">
+            <h4><i class="fas fa-check-circle"></i> QR Detectado</h4>
+            <p><strong>Edificio:</strong> <span id="srEdificio">—</span></p>
+            <p><strong>Piso:</strong> <span id="srPiso">—</span></p>
+            <p><strong>Zona:</strong> <span id="srZona">—</span></p>
+            <button class="btn btn-primary" style="margin-top:12px;padding:12px" onclick="confirmarRonda()"><i class="fas fa-check"></i> Confirmar Ronda</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><i class="fas fa-history"></i> Rondas de Hoy</div>
+            <button onclick="loadRondasHoy()" style="background:none;border:none;color:var(--primary);cursor:pointer"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div id="histRondas"><div style="text-align:center;color:var(--text-muted);padding:20px"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+</div>
+
+<!-- PANEL PAGO -->
+<div id="panel-pago" class="panel">
+    <div id="pagoContainer"><div style="text-align:center;padding:40px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i></div></div>
+    <div class="card" style="margin-top:8px">
+        <div class="card-title" style="margin-bottom:14px"><i class="fas fa-history"></i> Historial de Pagos</div>
+        <div id="histPagos"><div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <button class="nav-tab active" id="navAsist" onclick="switchPanel('asistencia')"><i class="fas fa-fingerprint"></i><span>Asistencia</span></button>
+    <button class="nav-tab" id="navRondas" onclick="switchPanel('rondas')"><i class="fas fa-qrcode"></i><span>Rondas</span></button>
+    <button class="nav-tab" id="navPago" onclick="switchPanel('pago')"><i class="fas fa-money-bill-wave"></i><span>Mi Pago</span></button>
+</nav>
+
+<!-- FAB NOVEDAD -->
+<button class="fab-novedad" onclick="abrirNovedad()"><i class="fas fa-exclamation-triangle"></i></button>
+
+<!-- MODAL NOVEDAD -->
+<div class="nov-modal" id="novModal">
+    <div class="nov-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <div style="font-size:18px;font-weight:700;color:var(--error);display:flex;align-items:center;gap:8px"><i class="fas fa-exclamation-triangle"></i> Reportar Novedad</div>
+            <button style="background:rgba(255,255,255,0.08);border:none;color:var(--text-muted);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px" onclick="cerrarNovedad()">✕</button>
+        </div>
+        <div id="novAlert" class="nov-alert"></div>
+        <div class="nov-foto-wrap" onclick="abrirCamaraNovedad()">
+            <img id="novFotoPreview" alt="">
+            <div class="nov-foto-placeholder" id="novFotoPlaceholder"><i class="fas fa-camera"></i><span style="font-size:13px">Toca para tomar foto</span></div>
+        </div>
+        <div class="nov-audio-wrap">
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="fas fa-microphone" style="color:var(--error)"></i> Nota de voz (opcional)</div>
+            <div style="display:flex;gap:10px">
+                <button id="novRecStart" onclick="iniciarGrabacion()" style="flex:1;padding:12px;border:none;border-radius:10px;background:rgba(239,68,68,0.2);color:#fca5a5;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><i class="fas fa-microphone"></i> Grabar</button>
+                <button id="novRecStop" onclick="detenerGrabacion()" style="flex:1;padding:12px;border:none;border-radius:10px;background:rgba(16,185,129,0.2);color:#34d399;font-size:14px;font-weight:600;cursor:pointer;display:none;align-items:center;justify-content:center;gap:8px"><div style="width:10px;height:10px;border-radius:50%;background:var(--error);animation:recBlink 1s ease-in-out infinite"></div> Detener</button>
+            </div>
+            @keyframes recBlink{0%,100%{opacity:1}50%{opacity:.2}}
+            <audio id="novAudioPlayer" controls style="width:100%;margin-top:10px;display:none;border-radius:8px"></audio>
+        </div>
+        <textarea class="nov-desc" id="novDesc" placeholder="Describe la novedad: ¿qué ocurrió? ¿dónde?"></textarea>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="fas fa-map-marker-alt" style="color:var(--primary)"></i><span id="novGpsLabel">Ubicación: obteniendo...</span></div>
+        <button class="nov-send-btn" id="novSendBtn" onclick="enviarNovedad()"><i class="fas fa-paper-plane"></i> Enviar Novedad al Admin</button>
+    </div>
+</div>
+
+<!-- MODAL BIOMETRÍA -->
+<div class="bio-modal" id="bioModal">
+    <div class="bio-box">
+        <i class="fas fa-fingerprint bio-icon"></i>
+        <div class="bio-title">Verificación Biométrica</div>
+        <div class="bio-desc">Use su huella digital para confirmar su identidad</div>
+        <div class="bio-btns">
+            <button class="bio-btn bio-btn-start" id="bioBtnStart" onclick="iniciarBiometria()"><i class="fas fa-fingerprint"></i> Verificar</button>
+            <button class="bio-btn bio-btn-cancel" onclick="cancelarBiometria()">Cancelar</button>
+        </div>
+        <div style="color:var(--success);margin-top:16px;font-size:14px;display:none" id="bioSuccess"><i class="fas fa-check-circle"></i> ¡Verificación exitosa!</div>
+    </div>
+</div>
+
+<!-- CÁMARA ASISTENCIA -->
+<div class="cam-modal" id="camModal">
+    <div class="cam-topbar">
+        <div class="cam-title" id="camTipoLabel">📷 Foto de Entrada</div>
+        <button class="cam-close" onclick="cerrarCamara()">✕</button>
+    </div>
+    <video id="camVideo" autoplay playsinline muted></video>
+    <canvas id="camCanvas"></canvas>
+    <div class="cam-overlay">
+        <div class="cam-guide"></div>
+        <div class="cam-guide-text">Centre su rostro en el marco</div>
+        <div class="cam-info-bar">
+            <span>👤 <strong id="camNombreInfo">—</strong></span>
+            <span id="camGpsInfo">📍 Obteniendo ubicación...</span>
+            <span id="camHoraInfo">⏰ --:--</span>
+        </div>
+    </div>
+    <div class="cam-btn-bar">
+        <button class="cam-flip-btn" onclick="voltearCamara()"><i class="fas fa-sync-alt"></i></button>
+        <button class="cam-capture-btn" onclick="capturarFoto()"></button>
+        <div style="width:44px"></div>
+    </div>
+    <div class="cam-preview" id="camPreview">
+        <img id="fotoPreviewImg" alt="">
+        <div class="cam-preview-btns">
+            <button class="btn-retomar" onclick="retomar()">↩ Retomar</button>
+            <button class="btn-enviar" onclick="confirmarFoto()">✅ Confirmar y Enviar</button>
+        </div>
+    </div>
+</div>
+
+<!-- CÁMARA NOVEDAD -->
+<div class="cam-modal" id="camNovedadModal" style="z-index:800">
+    <div style="position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,0.8);padding:14px 20px;z-index:10;display:flex;align-items:center;justify-content:space-between">
+        <div style="color:var(--error);font-weight:700;font-size:16px">📸 Foto de Novedad</div>
+        <button style="background:rgba(239,68,68,0.4);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px" onclick="cerrarCamaraNovedad()">✕</button>
+    </div>
+    <video id="camNovVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+    <canvas id="camNovCanvas" style="display:none"></canvas>
+    <div style="position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;gap:24px;align-items:center">
+        <button style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.18);border:none;color:white;font-size:20px;cursor:pointer" onclick="voltearCamaraNov()"><i class="fas fa-sync-alt"></i></button>
+        <button style="width:72px;height:72px;border-radius:50%;background:white;border:5px solid var(--error);cursor:pointer" onclick="capturarFotoNovedad()"></button>
+        <div style="width:44px"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/@zxing/library@0.15.0/umd/index.min.js"></script>
+<script>
+// ── INIT ──
+const guardia = Auth.requireGuardia();
+if (!guardia) throw new Error('No auth');
+
+const GUARDIA_ID     = guardia.id;
+const GUARDIA_NOMBRE = guardia.nombre + ' ' + guardia.apellido;
+const GUARDIA_CEDULA = guardia.cedula;
+
+document.getElementById('userAvatar').textContent  = guardia.nombre[0].toUpperCase();
+document.getElementById('userName').textContent    = GUARDIA_NOMBRE;
+document.getElementById('userCi').textContent      = 'CI: ' + GUARDIA_CEDULA;
+document.getElementById('userInfo').style.display  = 'block';
+document.getElementById('camNombreInfo').textContent = GUARDIA_NOMBRE;
+
+const GUARDIA_PUESTO      = guardia.puesto       || '';
+const GUARDIA_PUESTO_LAT  = parseFloat(guardia.puesto_lat)   || null;
+const GUARDIA_PUESTO_LON  = parseFloat(guardia.puesto_lon)   || null;
+const GUARDIA_PUESTO_RADIO= parseInt(guardia.puesto_radio)   || 200;
+// Mostrar puesto en topbar si existe
+if (GUARDIA_PUESTO) {
+    const puestoEl = document.createElement('div');
+    puestoEl.style.cssText = 'font-size:10px;color:var(--primary);display:flex;align-items:center;gap:4px;margin-top:2px';
+    puestoEl.innerHTML = '<i class="fas fa-map-marker-alt"></i> ' + GUARDIA_PUESTO;
+    document.getElementById('userInfo').appendChild(puestoEl);
+}
+
+let gpsData = { lat:null, lon:null, direccion:null, zona:null, ciudad:null, pais:null, precision:null, altitud:null };
+let fingerprintVerified = false, bioResolve = null;
+let camStream = null, camFacingMode = 'user', pendingTipo = null, fotoDataUrl = null, camClockTimer = null;
+let qrStream = null, qrScanning = false, _qrData = null;
+let camNovStream = null, camNovFacing = 'environment', novFotoDataUrl = null;
+let mediaRecorder = null, audioChunks = [], novAudioBlob = null;
+
+// ── RELOJ ──
+setInterval(() => {
+    const now = new Date();
+    document.getElementById('clockTime').textContent = now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('clockDate').textContent = now.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+}, 1000);
+
+// ── NAV ──
+function switchPanel(name) {
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(n=>n.classList.remove('active'));
+    document.getElementById('panel-'+name).classList.add('active');
+    document.getElementById('nav'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
+    if (name==='rondas') loadRondasHoy();
+    if (name==='pago')   loadPago();
+}
+
+// ── GPS ──
+function initGPS() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.watchPosition(pos => {
+        gpsData.lat = pos.coords.latitude; gpsData.lon = pos.coords.longitude;
+        gpsData.precision = pos.coords.accuracy; gpsData.altitud = pos.coords.altitude;
+        document.getElementById('gPrecision').textContent = `±${pos.coords.accuracy.toFixed(0)}m`;
+        document.getElementById('gpsBadge').innerHTML = '<i class="fas fa-satellite" style="color:var(--success)"></i> GPS Activo';
+        reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+    }, err => { console.warn('GPS error:', err.code, err.message); }, {enableHighAccuracy:true, maximumAge:0, timeout:30000, distanceFilter:5});
+}
+async function reverseGeocode(lat, lon) {
+    try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const d = await r.json();
+        const a = d.address || {};
+        gpsData.direccion = [a.road||a.pedestrian, a.house_number].filter(Boolean).join(' ') || 'No disponible';
+        gpsData.zona      = a.suburb||a.neighbourhood||a.city_district||a.quarter || 'No disponible';
+        gpsData.ciudad    = a.city||a.town||a.village || 'No disponible';
+        gpsData.pais      = a.country||'';
+        document.getElementById('gDireccion').textContent = gpsData.direccion;
+        document.getElementById('gZona').textContent      = gpsData.zona;
+        document.getElementById('gCiudad').textContent    = gpsData.ciudad;
+        document.getElementById('camGpsInfo').textContent = '📍 ' + gpsData.zona + (gpsData.ciudad!=='No disponible'?', '+gpsData.ciudad:'');
+        document.getElementById('novGpsLabel').textContent = gpsData.zona !== 'No disponible' ? gpsData.zona+', '+gpsData.ciudad : 'Sin GPS';
+    } catch(e) {}
+}
+initGPS();
+
+// ── BIOMETRÍA ──
+function checkBioSaved() {
+    if (localStorage.getItem('esefip_bio')==='1' && Date.now()-parseInt(localStorage.getItem('esefip_bio_time')||'0') < 86400000) {
+        fingerprintVerified = true;
+        document.getElementById('bioStatus').style.display = 'block';
+        document.getElementById('bioTimeText').textContent = 'Verificado a las ' + new Date(parseInt(localStorage.getItem('esefip_bio_time'))).toLocaleTimeString('es-ES');
+    }
+}
+checkBioSaved();
+
+function pedirBiometria() {
+    return new Promise(resolve => {
+        bioResolve = resolve;
+        document.getElementById('bioModal').classList.add('open');
+        document.getElementById('bioBtnStart').disabled = false;
+        document.getElementById('bioBtnStart').innerHTML = '<i class="fas fa-fingerprint"></i> Verificar';
+        document.getElementById('bioSuccess').style.display = 'none';
+        // Intentar biometría automáticamente
+        setTimeout(iniciarBiometria, 400);
+    });
+}
+async function iniciarBiometria() {
+    const btn = document.getElementById('bioBtnStart');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+
+    let ok = false;
+    try {
+        // Usar WebAuthn para pedir huella/PIN del dispositivo
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        const cred = await navigator.credentials.get({
+            publicKey: {
+                challenge,
+                timeout: 60000,
+                userVerification: 'required',
+                rpId: location.hostname
+            }
+        });
+        ok = !!cred;
+    } catch(e) {
+        // NotAllowedError = usuario canceló o tiempo agotado
+        // NotSupportedError / SecurityError = dispositivo sin huella configurada
+        if (e.name === 'NotSupportedError' || e.name === 'SecurityError' || e.message.includes('No credentials')) {
+            // Dispositivo sin huella → confirmar con el botón es suficiente
+            ok = true;
+        } else if (e.name === 'NotAllowedError') {
+            // Usuario canceló explícitamente
+            ok = false;
+        } else {
+            ok = true; // otros errores: aprobar (ya autenticado con contraseña)
+        }
+    }
+
+    if (ok) {
+        fingerprintVerified = true;
+        localStorage.setItem('esefip_bio', '1');
+        localStorage.setItem('esefip_bio_time', Date.now().toString());
+        document.getElementById('bioSuccess').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('bioModal').classList.remove('open');
+            if (bioResolve) { bioResolve(true); bioResolve = null; }
+        }, 900);
+    } else {
+        // Usuario canceló → mostrar botón para reintentar
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-fingerprint"></i> Reintentar';
+    }
+}
+function cancelarBiometria() {
+    document.getElementById('bioModal').classList.remove('open');
+    if (bioResolve) { bioResolve(false); bioResolve = null; }
+}
+
+// ── FLUJO ASISTENCIA ──
+async function iniciarFlujoAsistencia(tipo) {
+    const al = document.getElementById('alertAsist');
+
+    // ── GEOFENCING ──
+    if (GUARDIA_PUESTO_LAT && GUARDIA_PUESTO_LON && gpsData.lat) {
+        const dist = calcDistancia(gpsData.lat, gpsData.lon, GUARDIA_PUESTO_LAT, GUARDIA_PUESTO_LON);
+        if (dist > GUARDIA_PUESTO_RADIO) {
+            al.className = 'alert alert-error show';
+            al.innerHTML = `<i class="fas fa-map-marker-alt"></i> Fuera de zona permitida.<br>
+                <strong>Distancia al puesto: ${Math.round(dist)}m</strong> (máx. ${GUARDIA_PUESTO_RADIO}m)<br>
+                <span style="font-size:12px">Acércate al puesto "${GUARDIA_PUESTO}" para marcar ${tipo}.</span>`;
+            // Notificar al admin por Telegram
+            Telegram.sendMessage(
+                `⚠️ <b>INTENTO FUERA DE ZONA — ESEFIP</b>\n\n` +
+                `👤 ${GUARDIA_NOMBRE} | 🪪 ${GUARDIA_CEDULA}\n` +
+                `🏢 Puesto: ${GUARDIA_PUESTO}\n` +
+                `📍 Distancia al puesto: ${Math.round(dist)}m (máx ${GUARDIA_PUESTO_RADIO}m)\n` +
+                `🗺️ Ubicación: ${gpsData.lat}, ${gpsData.lon}\n` +
+                `⏰ ${new Date().toLocaleString('es-ES')}`
+            );
+            return;
+        }
+    } else if (GUARDIA_PUESTO_LAT && GUARDIA_PUESTO_LON && !gpsData.lat) {
+        al.className = 'alert alert-error show';
+        al.innerHTML = '<i class="fas fa-satellite"></i> Esperando señal GPS... Intenta en unos segundos.';
+        return;
+    }
+
+    // ── BIOMETRÍA ──
+    al.className = 'alert alert-info show';
+    al.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando verificación biométrica...';
+    const ok = await pedirBiometria();
+    if (!ok) { al.className='alert alert-error show'; al.innerHTML='❌ Verificación cancelada.'; return; }
+    pendingTipo = tipo;
+    document.getElementById('camTipoLabel').textContent = tipo==='entrada' ? '📷 Foto de Entrada' : '📷 Foto de Salida';
+    abrirCamara();
+}
+
+// Fórmula Haversine — distancia en metros entre dos coordenadas
+function calcDistancia(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function abrirCamara() {
+    document.getElementById('camModal').classList.add('open');
+    document.getElementById('camPreview').classList.remove('show');
+    try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacingMode }, audio: false });
+        document.getElementById('camVideo').srcObject = camStream;
+        camClockTimer = setInterval(() => {
+            document.getElementById('camHoraInfo').textContent = '⏰ ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+        }, 1000);
+    } catch(e) { cerrarCamara(); enviarAsistenciaSinFoto(); }
+}
+
+function cerrarCamara() {
+    if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    if (camClockTimer) { clearInterval(camClockTimer); camClockTimer=null; }
+    document.getElementById('camModal').classList.remove('open');
+}
+
+function voltearCamara() {
+    camFacingMode = camFacingMode==='user' ? 'environment' : 'user';
+    if (camStream) { camStream.getTracks().forEach(t=>t.stop()); }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacingMode }, audio: false })
+        .then(s => { camStream=s; document.getElementById('camVideo').srcObject=s; });
+}
+
+function capturarFoto() {
+    const video  = document.getElementById('camVideo');
+    const canvas = document.getElementById('camCanvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (camFacingMode==='user') { ctx.translate(canvas.width,0); ctx.scale(-1,1); }
+    ctx.drawImage(video, 0, 0);
+    if (camFacingMode==='user') ctx.setTransform(1,0,0,1,0,0);
+    // Franja con datos
+    const barH = Math.round(canvas.height*0.15);
+    ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,canvas.height-barH,canvas.width,barH);
+    ctx.fillStyle='#D4A017'; ctx.font='bold '+Math.round(canvas.width*0.038)+'px Arial';
+    ctx.textAlign='left';
+    ctx.fillText('ESEFIP — '+GUARDIA_NOMBRE, 14, canvas.height-barH+Math.round(barH*0.38));
+    ctx.fillStyle='#ffffff'; ctx.font=Math.round(canvas.width*0.03)+'px Arial';
+    ctx.fillText(new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}), 14, canvas.height-barH+Math.round(barH*0.72));
+    fotoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    document.getElementById('fotoPreviewImg').src = fotoDataUrl;
+    document.getElementById('camPreview').classList.add('show');
+}
+
+function retomar() { document.getElementById('camPreview').classList.remove('show'); fotoDataUrl=null; }
+
+async function confirmarFoto() {
+    cerrarCamara();
+    await enviarAsistencia(fotoDataUrl ? dataURLtoBlob(fotoDataUrl) : null);
+}
+
+async function enviarAsistenciaSinFoto() { await enviarAsistencia(null); }
+
+async function enviarAsistencia(fotoBlob) {
+    const al = document.getElementById('alertAsist');
+    al.className='alert alert-info show'; al.innerHTML='<i class="fas fa-spinner fa-spin"></i> Registrando '+pendingTipo+'...';
+    try {
+        // Telegram notificación
+        const ico = pendingTipo==='entrada'?'🟢':'🔴';
+        const now = new Date().toLocaleString('es-ES');
+        const msg = `${ico} <b>${pendingTipo.toUpperCase()} — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
+            (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
+            `\n⏰ ${now}` +
+            (gpsData.zona && gpsData.zona!=='No disponible' ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}` : '') +
+            (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '\n⚠️ Sin GPS') +
+            '\n🔐 Método: biometria';
+        if (fotoBlob) Telegram.sendPhoto(fotoBlob, msg);
+        else Telegram.sendMessage(msg);
+
+        await GuardiaAPI.registrarAsistencia(GUARDIA_ID, pendingTipo, gpsData, 'biometria', fotoBlob, getDeviceId(), GUARDIA_PUESTO);
+
+        al.className='alert alert-success show';
+        al.innerHTML=`<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada exitosamente.`;
+        loadAsistenciasHoy();
+    } catch(e) {
+        al.className='alert alert-error show'; al.innerHTML='❌ Error: '+e.message;
+    }
+}
+
+async function loadAsistenciasHoy() {
+    const data = await GuardiaAPI.asistenciasHoy(GUARDIA_ID);
+    const c    = document.getElementById('histAsist');
+    document.getElementById('statEntradas').textContent = (data||[]).filter(a=>a.tipo==='entrada').length;
+    if (!data || !data.length) { c.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:20px">Sin registros hoy</div>'; return; }
+    c.innerHTML = data.map(a => `
+        <div class="hist-item">
+            <div class="hist-dot ${a.tipo}"></div>
+            <div><div class="hist-main">${a.tipo.charAt(0).toUpperCase()+a.tipo.slice(1)}</div>
+            <div class="hist-sub">${formatDate(a.fecha_hora)} • ${a.zona||a.ciudad||'Sin ubicación'}</div></div>
+        </div>`).join('');
+}
+
+// ── QR / RONDAS ──
+let _codeReader = null;
+async function iniciarQR() {
+    const video = document.getElementById('qrVideo');
+    const ph    = document.getElementById('qrPlaceholder');
+    document.getElementById('scanResult').style.display = 'none';
+    try {
+        _codeReader = new ZXing.BrowserQRCodeReader();
+        const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        const deviceId = devices.length > 1 ? devices[devices.length-1].deviceId : (devices[0]?.deviceId || undefined);
+        video.style.display = 'block'; ph.style.display = 'none'; qrScanning = true;
+        await _codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result && qrScanning) {
+                qrScanning = false;
+                procesarQR(result.getText(), 'camara');
+                if (_codeReader) _codeReader.reset();
+            }
+        });
+    } catch(e) { ph.innerHTML='<i class="fas fa-times-circle" style="color:var(--error);font-size:40px"></i><span style="font-size:14px;color:var(--error)">Error cámara: '+e.message+'</span>'; }
+}
+
+function escanearDesdeGaleria(input) {
+    if (!input.files[0]) return;
+    const img = new Image();
+    img.onload = () => {
+        const c = document.getElementById('qrCanvas');
+        c.width=img.width; c.height=img.height; c.style.display='none';
+        c.getContext('2d').drawImage(img,0,0);
+        if (!_codeReader) _codeReader = new ZXing.BrowserQRCodeReader();
+        _codeReader.decodeFromImageElement(img)
+            .then(r => procesarQR(r.getText(), 'galeria'))
+            .catch(() => alert('No se detectó un QR válido en la imagen.'));
+    };
+    img.src = URL.createObjectURL(input.files[0]);
+}
+
+function procesarQR(text, metodo) {
+    try {
+        const d = JSON.parse(text);
+        _qrData = { ...d, edificio: d.building||d.edificio||'Desconocido', piso: d.floor||d.piso||'', zona: d.zone||d.zona||'', qr_id: d.id||'', metodo };
+        document.getElementById('srEdificio').textContent = _qrData.edificio;
+        document.getElementById('srPiso').textContent     = _qrData.piso;
+        document.getElementById('srZona').textContent     = _qrData.zona;
+        document.getElementById('scanResult').style.display = 'block';
+        document.getElementById('qrVideo').style.display = 'none';
+        document.getElementById('qrPlaceholder').style.display = 'flex';
+    } catch(e) { alert('QR inválido o no reconocido'); }
+}
+
+async function confirmarRonda() {
+    if (!_qrData) return;
+    try {
+        const msg = `🔵 <b>RONDA REGISTRADA — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
+            (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
+            `\n⏰ ${new Date().toLocaleString('es-ES')}\n📍 ${_qrData.edificio} — ${_qrData.piso} — ${_qrData.zona}` +
+            (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '');
+        Telegram.sendMessage(msg);
+        await GuardiaAPI.registrarRonda(GUARDIA_ID, { ..._qrData, lat: gpsData.lat, lon: gpsData.lon }, getDeviceId(), GUARDIA_PUESTO);
+        document.getElementById('scanResult').style.display = 'none';
+        _qrData = null;
+        loadRondasHoy();
+        alert('✅ Ronda registrada exitosamente');
+    } catch(e) { alert('Error: '+e.message); }
+}
+
+async function loadRondasHoy() {
+    const data = await GuardiaAPI.rondasHoy(GUARDIA_ID);
+    document.getElementById('statRondas').textContent = (data||[]).length;
+    const c = document.getElementById('histRondas');
+    if (!data || !data.length) { c.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:20px">Sin rondas hoy</div>'; return; }
+    c.innerHTML = data.map(r => `
+        <div class="hist-item">
+            <div class="hist-dot ronda"></div>
+            <div><div class="hist-main">${r.edificio} — ${r.zona||r.piso||''}</div>
+            <div class="hist-sub">${formatDate(r.fecha_hora)} • ${r.metodo_escaneo}</div></div>
+        </div>`).join('');
+}
+
+// ── PAGO ──
+async function loadPago() {
+    const now  = new Date();
+    const pago = await GuardiaAPI.pagoMes(GUARDIA_ID, now.getMonth()+1, now.getFullYear());
+    const c    = document.getElementById('pagoContainer');
+    const meses= ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    if (pago) {
+        const badge = pago.estado==='pagado' ? '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:30px;font-size:14px;font-weight:600;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.3)">✅ Pagado</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:30px;font-size:14px;font-weight:600;background:rgba(245,158,11,0.2);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">⏳ Pendiente</span>';
+        c.innerHTML = `
+            <div class="pago-hero">
+                <div style="font-size:18px;color:var(--text-muted);margin-bottom:4px">${meses[now.getMonth()+1]} ${now.getFullYear()}</div>
+                <div class="pago-amount">Bs ${parseFloat(pago.total||0).toFixed(2)}</div>
+                ${badge}
+            </div>
+            <div class="pago-detail-grid">
+                <div class="pago-detail-item"><div class="pago-detail-value">Bs ${parseFloat(pago.salario_base).toFixed(2)}</div><div class="pago-detail-label">Salario Base</div></div>
+                <div class="pago-detail-item"><div class="pago-detail-value" style="color:#34d399">+Bs ${parseFloat(pago.bonos||0).toFixed(2)}</div><div class="pago-detail-label">Bonos</div></div>
+                <div class="pago-detail-item"><div class="pago-detail-value" style="color:#f87171">-Bs ${parseFloat(pago.descuentos||0).toFixed(2)}</div><div class="pago-detail-label">Descuentos</div></div>
+                <div class="pago-detail-item"><div class="pago-detail-value" style="color:var(--primary)">Bs ${parseFloat(pago.total||0).toFixed(2)}</div><div class="pago-detail-label">Total Neto</div></div>
+            </div>
+            ${pago.observaciones?`<div style="background:rgba(255,255,255,0.03);border-radius:12px;padding:14px;font-size:13px;color:var(--text-muted)"><strong>Observaciones:</strong><br>${pago.observaciones}</div>`:''}`;
+    } else {
+        c.innerHTML = `<div class="card" style="text-align:center;padding:30px"><i class="fas fa-info-circle" style="font-size:40px;color:var(--text-muted);margin-bottom:12px;display:block"></i><div style="color:var(--text-muted)">No hay información de pago para este mes.</div></div>`;
+    }
+    loadHistPagos();
+}
+
+async function loadHistPagos() {
+    const data = await GuardiaAPI.historialPagos(GUARDIA_ID);
+    const meses= ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const c = document.getElementById('histPagos');
+    if (!data || !data.length) { c.innerHTML='<div style="color:var(--text-muted);font-size:13px">Sin historial</div>'; return; }
+    c.innerHTML = data.map(p => `
+        <div class="hist-item">
+            <div class="hist-dot ${p.estado==='pagado'?'entrada':'ronda'}"></div>
+            <div style="flex:1">
+                <div class="hist-main">${meses[p.mes]} ${p.anio} — Bs ${parseFloat(p.total||0).toFixed(2)}</div>
+                <div class="hist-sub"><span style="color:${p.estado==='pagado'?'var(--success)':'var(--warning)'}">${p.estado}</span></div>
+            </div>
+        </div>`).join('');
+}
+
+// ── NOVEDAD ──
+function abrirNovedad()  { document.getElementById('novModal').classList.add('open'); }
+function cerrarNovedad() {
+    document.getElementById('novModal').classList.remove('open');
+    novFotoDataUrl=null; novAudioBlob=null;
+    document.getElementById('novDesc').value='';
+    document.getElementById('novFotoPreview').style.display='none';
+    document.getElementById('novFotoPlaceholder').style.display='flex';
+    document.getElementById('novAudioPlayer').style.display='none';
+    document.getElementById('novAlert').className='nov-alert';
+    document.getElementById('novSendBtn').disabled=false;
+    document.getElementById('novSendBtn').innerHTML='<i class="fas fa-paper-plane"></i> Enviar Novedad al Admin';
+    if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop();
+}
+
+async function abrirCamaraNovedad() {
+    try {
+        camNovStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:camNovFacing }, audio:false });
+        document.getElementById('camNovVideo').srcObject = camNovStream;
+        document.getElementById('camNovedadModal').classList.add('open');
+    } catch(e) { alert('No se pudo acceder a la cámara: '+e.message); }
+}
+function voltearCamaraNov() {
+    camNovFacing = camNovFacing==='user'?'environment':'user';
+    if (camNovStream) camNovStream.getTracks().forEach(t=>t.stop());
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:camNovFacing }, audio:false })
+        .then(s => { camNovStream=s; document.getElementById('camNovVideo').srcObject=s; });
+}
+function capturarFotoNovedad() {
+    const video=document.getElementById('camNovVideo'), canvas=document.getElementById('camNovCanvas');
+    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    const ctx=canvas.getContext('2d');
+    if (camNovFacing==='user') { ctx.translate(canvas.width,0); ctx.scale(-1,1); }
+    ctx.drawImage(video,0,0);
+    if (camNovFacing==='user') ctx.setTransform(1,0,0,1,0,0);
+    novFotoDataUrl = canvas.toDataURL('image/jpeg',0.85);
+    cerrarCamaraNovedad();
+    const img=document.getElementById('novFotoPreview');
+    img.src=novFotoDataUrl; img.style.display='block';
+    document.getElementById('novFotoPlaceholder').style.display='none';
+}
+function cerrarCamaraNovedad() {
+    if (camNovStream) { camNovStream.getTracks().forEach(t=>t.stop()); camNovStream=null; }
+    document.getElementById('camNovedadModal').classList.remove('open');
+}
+
+async function iniciarGrabacion() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        audioChunks=[]; mediaRecorder=new MediaRecorder(stream);
+        mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+        mediaRecorder.onstop=()=>{
+            novAudioBlob=new Blob(audioChunks,{type:'audio/webm'});
+            const url=URL.createObjectURL(novAudioBlob);
+            const pl=document.getElementById('novAudioPlayer');
+            pl.src=url; pl.style.display='block';
+            stream.getTracks().forEach(t=>t.stop());
+        };
+        mediaRecorder.start();
+        document.getElementById('novRecStart').style.display='none';
+        document.getElementById('novRecStop').style.display='flex';
+    } catch(e) { const al=document.getElementById('novAlert'); al.className='nov-alert err show'; al.textContent='❌ Sin acceso al micrófono: '+e.message; }
+}
+function detenerGrabacion() {
+    if (mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop();
+    document.getElementById('novRecStart').style.display='flex';
+    document.getElementById('novRecStop').style.display='none';
+}
+
+async function enviarNovedad() {
+    const desc=document.getElementById('novDesc').value.trim();
+    const al=document.getElementById('novAlert'), btn=document.getElementById('novSendBtn');
+    if (!desc && !novFotoDataUrl) { al.className='nov-alert err show'; al.textContent='❌ Agrega una descripción o foto.'; return; }
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    al.className='nov-alert inf show'; al.textContent='📤 Enviando novedad...';
+    try {
+        const fotoBlob  = novFotoDataUrl ? dataURLtoBlob(novFotoDataUrl) : null;
+        await GuardiaAPI.registrarNovedad(GUARDIA_ID, desc, gpsData, fotoBlob, novAudioBlob, GUARDIA_NOMBRE, GUARDIA_CEDULA, GUARDIA_PUESTO);
+        al.className='nov-alert ok show'; al.textContent='✅ Novedad enviada al administrador.';
+        btn.innerHTML='<i class="fas fa-check"></i> Enviado';
+        setTimeout(() => cerrarNovedad(), 2500);
+    } catch(e) {
+        al.className='nov-alert err show'; al.textContent='❌ Error: '+e.message;
+        btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Reintentar';
+    }
+}
+
+// ══════════════════════════════════════════════════
+// MODO OFFLINE — IndexedDB
+// ══════════════════════════════════════════════════
+const OfflineDB = {
+    db: null,
+    async init() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('esefip_offline', 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('pendientes')) {
+                    db.createObjectStore('pendientes', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            req.onsuccess = e => { this.db = e.target.result; resolve(); };
+            req.onerror   = () => reject(req.error);
+        });
+    },
+    async guardar(accion, datos) {
+        return new Promise((resolve, reject) => {
+            const tx   = this.db.transaction('pendientes', 'readwrite');
+            const store = tx.objectStore('pendientes');
+            store.add({ accion, datos, timestamp: Date.now() }).onsuccess = () => resolve();
+        });
+    },
+    async obtenerTodos() {
+        return new Promise((resolve, reject) => {
+            const tx    = this.db.transaction('pendientes', 'readonly');
+            const store = tx.objectStore('pendientes');
+            const req   = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror   = () => reject(req.error);
+        });
+    },
+    async eliminar(id) {
+        return new Promise((resolve, reject) => {
+            const tx    = this.db.transaction('pendientes', 'readwrite');
+            const store = tx.objectStore('pendientes');
+            store.delete(id).onsuccess = () => resolve();
+        });
+    },
+    async contarPendientes() {
+        return new Promise(resolve => {
+            const tx    = this.db.transaction('pendientes', 'readonly');
+            const store = tx.objectStore('pendientes');
+            store.count().onsuccess = e => resolve(e.target.result);
+        });
+    }
+};
+
+// Indicador de conexión en el topbar
+function actualizarIndicadorConexion() {
+    let ind = document.getElementById('conexionIndicador');
+    if (!ind) {
+        ind = document.createElement('div');
+        ind.id = 'conexionIndicador';
+        ind.style.cssText = 'font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600;cursor:pointer';
+        ind.title = 'Clic para sincronizar';
+        ind.onclick = sincronizarOffline;
+        document.querySelector('.topbar-user').prepend(ind);
+    }
+    if (navigator.onLine) {
+        ind.style.background = 'rgba(16,185,129,0.15)';
+        ind.style.color = '#34d399';
+        ind.innerHTML = '<i class="fas fa-wifi"></i> Online';
+    } else {
+        ind.style.background = 'rgba(239,68,68,0.15)';
+        ind.style.color = '#f87171';
+        ind.innerHTML = '<i class="fas fa-wifi-slash"></i> Offline';
+    }
+    // Mostrar badge con pendientes
+    OfflineDB.contarPendientes().then(n => {
+        if (n > 0) ind.innerHTML += ` <span style="background:#f59e0b;color:#000;border-radius:10px;padding:1px 6px;font-size:10px">${n}</span>`;
+    });
+}
+
+async function sincronizarOffline() {
+    if (!navigator.onLine) { return; }
+    const pendientes = await OfflineDB.obtenerTodos();
+    if (!pendientes.length) { showAlertAsist('No hay registros pendientes de sincronizar', 'info'); return; }
+
+    showAlertAsist(`⏳ Sincronizando ${pendientes.length} registro(s)...`, 'info');
+    let ok = 0, fail = 0;
+    for (const p of pendientes) {
+        try {
+            if (p.accion === 'asistencia') {
+                await GuardiaAPI.registrarAsistencia(
+                    p.datos.uid, p.datos.tipo, p.datos.gps,
+                    p.datos.metodo, null, p.datos.dispositivo, p.datos.puesto
+                );
+            } else if (p.accion === 'ronda') {
+                await GuardiaAPI.registrarRonda(p.datos.uid, p.datos.datos, p.datos.dispositivo, p.datos.puesto);
+            }
+            await OfflineDB.eliminar(p.id);
+            ok++;
+        } catch(e) { fail++; }
+    }
+    showAlertAsist(`✅ Sincronizados: ${ok}${fail ? ` | ❌ Fallaron: ${fail}` : ''}`, ok > 0 ? 'success' : 'error');
+    actualizarIndicadorConexion();
+    loadAsistenciasHoy();
+}
+
+function showAlertAsist(msg, tipo='info') {
+    const al = document.getElementById('alertAsist');
+    al.className = `alert alert-${tipo} show`;
+    al.innerHTML = msg;
+}
+
+// Wrapper de enviar asistencia con fallback offline
+async function enviarAsistencia(fotoBlob) {
+    const al = document.getElementById('alertAsist');
+    al.className='alert alert-info show';
+    al.innerHTML='<i class="fas fa-spinner fa-spin"></i> Registrando ' + pendingTipo + '...';
+
+    const ico = pendingTipo==='entrada'?'🟢':'🔴';
+    const now = new Date().toLocaleString('es-ES');
+    const msg = `${ico} <b>${pendingTipo.toUpperCase()} — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
+        (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
+        `\n⏰ ${now}` +
+        (gpsData.zona && gpsData.zona!=='No disponible' ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}` : '') +
+        (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '\n⚠️ Sin GPS') +
+        '\n🔐 Método: biometria';
+
+    if (navigator.onLine) {
+        try {
+            if (fotoBlob) Telegram.sendPhoto(fotoBlob, msg);
+            else Telegram.sendMessage(msg);
+            await GuardiaAPI.registrarAsistencia(GUARDIA_ID, pendingTipo, gpsData, 'biometria', fotoBlob, getDeviceId(), GUARDIA_PUESTO);
+            al.className='alert alert-success show';
+            al.innerHTML=`<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada.`;
+            loadAsistenciasHoy();
+        } catch(e) {
+            await guardarOffline_asistencia();
+        }
+    } else {
+        await guardarOffline_asistencia();
+    }
+    actualizarIndicadorConexion();
+}
+
+async function guardarOffline_asistencia() {
+    const al = document.getElementById('alertAsist');
+    await OfflineDB.guardar('asistencia', {
+        uid: GUARDIA_ID, tipo: pendingTipo,
+        gps: {...gpsData}, metodo: 'biometria',
+        dispositivo: getDeviceId(), puesto: GUARDIA_PUESTO
+    });
+    al.className='alert alert-warning show';
+    al.innerHTML='<i class="fas fa-cloud-upload-alt"></i> Sin conexión — registro guardado localmente. Se enviará cuando haya internet.';
+    actualizarIndicadorConexion();
+}
+
+window.addEventListener('online',  () => { actualizarIndicadorConexion(); sincronizarOffline(); });
+window.addEventListener('offline', () => actualizarIndicadorConexion());
+
+// ── INIT CARGA ──
+OfflineDB.init().then(() => {
+    actualizarIndicadorConexion();
+    loadAsistenciasHoy();
+    // Si hay pendientes y hay conexión, sincronizar al entrar
+    if (navigator.onLine) sincronizarOffline();
+});
+</script>
+</body>
+</html>
