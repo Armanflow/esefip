@@ -404,6 +404,25 @@ let GUARDIA_PUESTO_LAT   = guardia.puesto_lat   ? parseFloat(guardia.puesto_lat)
 let GUARDIA_PUESTO_LON   = guardia.puesto_lon   ? parseFloat(guardia.puesto_lon)   : null;
 let GUARDIA_PUESTO_RADIO = guardia.puesto_radio ? parseInt(guardia.puesto_radio)   : 200;
 
+async function enviarATodos(msg, fotoBlob = null) {
+    // Admin
+    if (fotoBlob) {
+        await Telegram.sendPhoto(fotoBlob, msg);
+    } else {
+        await enviarATodos(msg);
+     
+    }
+
+    // Guardia
+    if (GUARDIA_TELEGRAM_CHAT) {
+        if (fotoBlob) {
+            await Telegram.sendPhoto(fotoBlob, msg, GUARDIA_TELEGRAM_CHAT);
+        } else {
+            await Telegram.sendMessage(msg, GUARDIA_TELEGRAM_CHAT);
+        }
+    }
+    }
+
 // Recargar datos frescos desde BD (por si el admin cambió el puesto/geo después del login)
 async function recargarDatosGuardia() {
     try {
@@ -1215,23 +1234,32 @@ async function enviarAsistencia(fotoBlob) {
         (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '\n⚠️ Sin GPS') +
         '\n🔐 Método: biometria';
 
-    if (navigator.onLine) {
-        try {
-            if (fotoBlob) Telegram.sendPhoto(fotoBlob, msg);
-            else Telegram.sendMessage(msg);
-            await GuardiaAPI.registrarAsistencia(GUARDIA_ID, pendingTipo, gpsData, 'biometria', fotoBlob, getDeviceId(), GUARDIA_PUESTO);
-            al.className='alert alert-success show';
-            al.innerHTML=`<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada.`;
-            loadAsistenciasHoy();
-        } catch(e) {
-            await guardarOffline_asistencia();
-        }
-    } else {
+    if if (navigator.onLine) {
+    try {
+        await enviarATodos(msg, fotoBlob);
+
+        await GuardiaAPI.registrarAsistencia(
+            GUARDIA_ID,
+            pendingTipo,
+            gpsData,
+            'biometria',
+            fotoBlob,
+            getDeviceId(),
+            GUARDIA_PUESTO
+        );
+
+        al.className = 'alert alert-success show';
+        al.innerHTML = `<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada.`;
+
+        loadAsistenciasHoy();
+    } catch(e) {
         await guardarOffline_asistencia();
     }
-    actualizarIndicadorConexion();
+} else {
+    await guardarOffline_asistencia();
 }
 
+actualizarIndicadorConexion();
 async function guardarOffline_asistencia() {
     const al = document.getElementById('alertAsist');
     await OfflineDB.guardar('asistencia', {
@@ -1339,7 +1367,7 @@ async function activarSOS() {
             `⏰ ${new Date().toLocaleString('es-ES')}\n` +
             (gpsData.lat ? `🗺️ <b>GPS: ${gpsData.lat}, ${gpsData.lon}</b>\n📍 ${gpsData.zona||''}, ${gpsData.ciudad||''}` : '⚠️ Sin GPS') +
             `\n\n🔴 <i>Guardia necesita ayuda urgente</i>`;
-        await Telegram.sendMessage(msg);
+        await enviarATodos(msg, fotoBlob);
     };
 
     let contador = 1;
