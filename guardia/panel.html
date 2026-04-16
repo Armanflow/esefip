@@ -405,23 +405,32 @@ let GUARDIA_PUESTO_LON   = guardia.puesto_lon   ? parseFloat(guardia.puesto_lon)
 let GUARDIA_PUESTO_RADIO = guardia.puesto_radio ? parseInt(guardia.puesto_radio)   : 200;
 
 async function enviarATodos(msg, fotoBlob = null) {
-    // Admin
+    // ENVIAR AL ADMIN
     if (fotoBlob) {
         await Telegram.sendPhoto(fotoBlob, msg);
     } else {
-        await enviarATodos(msg);
-     
+        await Telegram.sendMessage(msg);
     }
 
-    // Guardia
-    if (GUARDIA_TELEGRAM_CHAT) {
+    // ENVIAR AL GUARDIA
+    if (
+        GUARDIA_TELEGRAM_CHAT &&
+        String(GUARDIA_TELEGRAM_CHAT) !== String(TELEGRAM_CHAT)
+    ) {
         if (fotoBlob) {
-            await Telegram.sendPhoto(fotoBlob, msg, GUARDIA_TELEGRAM_CHAT);
+            await Telegram.sendPhoto(
+                fotoBlob,
+                msg,
+                GUARDIA_TELEGRAM_CHAT
+            );
         } else {
-            await Telegram.sendMessage(msg, GUARDIA_TELEGRAM_CHAT);
+            await Telegram.sendMessage(
+                msg,
+                GUARDIA_TELEGRAM_CHAT
+            );
         }
     }
-    }
+}
 
 // Recargar datos frescos desde BD (por si el admin cambió el puesto/geo después del login)
 async function recargarDatosGuardia() {
@@ -814,28 +823,78 @@ async function enviarAsistenciaSinFoto() { await enviarAsistencia(null); }
 
 async function enviarAsistencia(fotoBlob) {
     const al = document.getElementById('alertAsist');
-    al.className='alert alert-info show'; al.innerHTML='<i class="fas fa-spinner fa-spin"></i> Registrando '+pendingTipo+'...';
-    try {
-        // Telegram notificación
-        const ico = pendingTipo==='entrada'?'🟢':'🔴';
-        const now = new Date().toLocaleString('es-ES');
-        const msg = `${ico} <b>${pendingTipo.toUpperCase()} — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
-            (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
-            `\n⏰ ${now}` +
-            (gpsData.zona && gpsData.zona!=='No disponible' ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}` : '') +
-            (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '\n⚠️ Sin GPS') +
-            '\n🔐 Método: biometria';
-        if (fotoBlob) Telegram.sendPhoto(fotoBlob, msg, GUARDIA_TELEGRAM_CHAT);
-        else Telegram.sendMessage(msg, GUARDIA_TELEGRAM_CHAT);
 
-        await GuardiaAPI.registrarAsistencia(GUARDIA_ID, pendingTipo, gpsData, 'biometria', fotoBlob, getDeviceId(), GUARDIA_PUESTO);
+    al.className = 'alert alert-info show';
+    al.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Registrando ' +
+        pendingTipo + '...';
 
-        al.className='alert alert-success show';
-        al.innerHTML=`<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada exitosamente.`;
-        loadAsistenciasHoy();
-    } catch(e) {
-        al.className='alert alert-error show'; al.innerHTML='❌ Error: '+e.message;
+    const ico = pendingTipo === 'entrada' ? '🟢' : '🔴';
+    const now = new Date().toLocaleString('es-ES');
+
+    const msg =
+        `${ico} <b>${pendingTipo.toUpperCase()} — ESEFIP</b>\n\n` +
+        `👤 ${GUARDIA_NOMBRE}\n` +
+        `🪪 ${GUARDIA_CEDULA}` +
+        (GUARDIA_PUESTO
+            ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>`
+            : '') +
+        `\n⏰ ${now}` +
+        (gpsData.zona &&
+        gpsData.zona !== 'No disponible'
+            ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}`
+            : '') +
+        (gpsData.lat
+            ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}`
+            : '\n⚠️ Sin GPS') +
+        '\n🔐 Método: biometria';
+
+    async function guardarOffline_asistencia() {
+        await OfflineDB.guardar('asistencia', {
+            uid: GUARDIA_ID,
+            tipo: pendingTipo,
+            gps: { ...gpsData },
+            metodo: 'biometria',
+            dispositivo: getDeviceId(),
+            puesto: GUARDIA_PUESTO
+        });
+
+        al.className = 'alert alert-warning show';
+        al.innerHTML =
+            '<i class="fas fa-cloud-upload-alt"></i> ' +
+            'Sin conexión — guardado localmente';
+
+        actualizarIndicadorConexion();
     }
+
+    if (navigator.onLine) {
+        try {
+            await enviarATodos(msg, fotoBlob);
+
+            await GuardiaAPI.registrarAsistencia(
+                GUARDIA_ID,
+                pendingTipo,
+                gpsData,
+                'biometria',
+                fotoBlob,
+                getDeviceId(),
+                GUARDIA_PUESTO
+            );
+
+            al.className = 'alert alert-success show';
+            al.innerHTML =
+                `<i class="fas fa-check-circle"></i> ` +
+                `${pendingTipo} registrada correctamente`;
+
+            loadAsistenciasHoy();
+        } catch (e) {
+            await guardarOffline_asistencia();
+        }
+    } else {
+        await guardarOffline_asistencia();
+    }
+
+    actualizarIndicadorConexion();
 }
 
 async function loadAsistenciasHoy() {
@@ -954,18 +1013,36 @@ function procesarQR(text, metodo) {
 
 async function confirmarRonda() {
     if (!_qrData) return;
+
     try {
-        const msg = `🔵 <b>RONDA REGISTRADA — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
-            (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
-            `\n⏰ ${new Date().toLocaleString('es-ES')}\n📍 ${_qrData.edificio} — ${_qrData.piso} — ${_qrData.zona}` +
-            (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '');
-        Telegram.sendMessage(msg, GUARDIA_TELEGRAM_CHAT);
-        await GuardiaAPI.registrarRonda(GUARDIA_ID, { ..._qrData, lat: gpsData.lat, lon: gpsData.lon }, getDeviceId(), GUARDIA_PUESTO);
-        document.getElementById('scanResult').style.display = 'none';
-        _qrData = null;
+        const msg =
+            `🔵 <b>RONDA REGISTRADA — ESEFIP</b>\n\n` +
+            `👤 ${GUARDIA_NOMBRE}\n` +
+            `🪪 ${GUARDIA_CEDULA}` +
+            (GUARDIA_PUESTO
+                ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>`
+                : '') +
+            `\n⏰ ${new Date().toLocaleString('es-ES')}` +
+            `\n📍 ${_qrData.edificio} — ${_qrData.piso} — ${_qrData.zona}`;
+
+        await enviarATodos(msg);
+
+        await GuardiaAPI.registrarRonda(
+            GUARDIA_ID,
+            {
+                ..._qrData,
+                lat: gpsData.lat,
+                lon: gpsData.lon
+            },
+            getDeviceId(),
+            GUARDIA_PUESTO
+        );
+
         loadRondasHoy();
-        alert('✅ Ronda registrada exitosamente');
-    } catch(e) { alert('Error: '+e.message); }
+        alert('✅ Ronda registrada');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
 }
 
 async function loadRondasHoy() {
@@ -1331,59 +1408,90 @@ function detenerTurnoActivo() {
 // BOTÓN SOS
 // ══════════════════════════════════════════════
 let sosActivo = false;
-let sosTimer  = null;
+let sosTimer = null;
 let sosInterval = null;
 
 async function activarSOS() {
     const btn = document.getElementById('fabSOS');
 
     if (sosActivo) {
-        // Desactivar SOS
+        // DESACTIVAR SOS
         sosActivo = false;
         clearTimeout(sosTimer);
         clearInterval(sosInterval);
+
         btn.classList.remove('activo');
-        btn.innerHTML = '<span style="font-size:13px;font-weight:900;letter-spacing:1px">SOS</span>';
-        await Telegram.sendMessage(
+        btn.innerHTML =
+            '<span style="font-size:13px;font-weight:900;letter-spacing:1px">SOS</span>';
+
+        await enviarATodos(
             `✅ <b>SOS CANCELADO — ESEFIP</b>\n\n` +
             `👤 ${GUARDIA_NOMBRE} | 🪪 ${GUARDIA_CEDULA}\n` +
-            (GUARDIA_PUESTO ? `🏢 ${GUARDIA_PUESTO}\n` : '') +
+            (GUARDIA_PUESTO
+                ? `🏢 ${GUARDIA_PUESTO}\n`
+                : '') +
             `⏰ ${new Date().toLocaleString('es-ES')}`
         );
+
         return;
     }
 
-    if (!confirm('⚠️ ¿Activar ALERTA DE EMERGENCIA SOS?\nSe notificará al administrador inmediatamente.')) return;
+    if (
+        !confirm(
+            '⚠️ ¿Activar ALERTA DE EMERGENCIA SOS?\nSe notificará inmediatamente.'
+        )
+    ) return;
 
     sosActivo = true;
     btn.classList.add('activo');
-    btn.innerHTML = '<span style="font-size:11px;font-weight:900">STOP</span>';
+    btn.innerHTML =
+        '<span style="font-size:11px;font-weight:900">STOP</span>';
 
     const enviarSOS = async (contador) => {
         const msg =
-            `🆘 <b>EMERGENCIA SOS — ESEFIP</b> ${contador > 1 ? '(#'+contador+')' : ''}\n\n` +
-            `👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}\n` +
-            (GUARDIA_PUESTO ? `🏢 Puesto: <b>${GUARDIA_PUESTO}</b>\n` : '') +
+            `🆘 <b>EMERGENCIA SOS — ESEFIP</b> ` +
+            `${contador > 1 ? '(#' + contador + ')' : ''}\n\n` +
+            `👤 ${GUARDIA_NOMBRE}\n` +
+            `🪪 ${GUARDIA_CEDULA}\n` +
+            (GUARDIA_PUESTO
+                ? `🏢 Puesto: <b>${GUARDIA_PUESTO}</b>\n`
+                : '') +
             `⏰ ${new Date().toLocaleString('es-ES')}\n` +
-            (gpsData.lat ? `🗺️ <b>GPS: ${gpsData.lat}, ${gpsData.lon}</b>\n📍 ${gpsData.zona||''}, ${gpsData.ciudad||''}` : '⚠️ Sin GPS') +
+            (gpsData.lat
+                ? `🗺️ <b>GPS: ${gpsData.lat}, ${gpsData.lon}</b>\n` +
+                  `📍 ${gpsData.zona || ''}, ${gpsData.ciudad || ''}`
+                : '⚠️ Sin GPS') +
             `\n\n🔴 <i>Guardia necesita ayuda urgente</i>`;
-        await enviarATodos(msg, fotoBlob);
+
+        await enviarATodos(msg);
     };
 
     let contador = 1;
     await enviarSOS(contador);
 
-    // Repetir cada 2 minutos mientras SOS esté activo
+    // REPETIR CADA 2 MINUTOS
     sosInterval = setInterval(async () => {
-        if (!sosActivo) { clearInterval(sosInterval); return; }
-        contador++;
-        // Actualizar GPS antes de reenviar
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                gpsData.lat = pos.coords.latitude;
-                gpsData.lon = pos.coords.longitude;
-            }, null, {enableHighAccuracy: true, timeout: 5000});
+        if (!sosActivo) {
+            clearInterval(sosInterval);
+            return;
         }
+
+        contador++;
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    gpsData.lat = pos.coords.latitude;
+                    gpsData.lon = pos.coords.longitude;
+                },
+                null,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000
+                }
+            );
+        }
+
         await enviarSOS(contador);
     }, 120000);
 }
