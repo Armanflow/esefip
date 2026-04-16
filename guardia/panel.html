@@ -407,7 +407,10 @@ let GUARDIA_PUESTO_RADIO = guardia.puesto_radio ? parseInt(guardia.puesto_radio)
 // Recargar datos frescos desde BD (por si el admin cambió el puesto/geo después del login)
 async function recargarDatosGuardia() {
     try {
-        const rows = await query('usuarios', `id=eq.${GUARDIA_ID}&select=puesto,puesto_lat,puesto_lon,puesto_radio`);
+        const rows = await query(
+            'usuarios',
+            `id=eq.${GUARDIA_ID}&select=puesto,puesto_lat,puesto_lon,puesto_radio,telegram_chat_id`
+        );
         if (rows && rows[0]) {
             const g = rows[0];
             GUARDIA_PUESTO        = g.puesto            || GUARDIA_PUESTO;
