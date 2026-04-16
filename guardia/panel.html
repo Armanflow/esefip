@@ -736,16 +736,52 @@ function capturarFoto() {
     ctx.drawImage(video, 0, 0);
     if (camFacingMode==='user') ctx.setTransform(1,0,0,1,0,0);
     // Franja con datos
-    const barH = Math.round(canvas.height*0.15);
-    ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,canvas.height-barH,canvas.width,barH);
-    ctx.fillStyle='#D4A017'; ctx.font='bold '+Math.round(canvas.width*0.038)+'px Arial';
-    ctx.textAlign='left';
-    ctx.fillText('ESEFIP — '+GUARDIA_NOMBRE, 14, canvas.height-barH+Math.round(barH*0.38));
-    ctx.fillStyle='#ffffff'; ctx.font=Math.round(canvas.width*0.03)+'px Arial';
-    ctx.fillText(new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}), 14, canvas.height-barH+Math.round(barH*0.72));
-    fotoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    document.getElementById('fotoPreviewImg').src = fotoDataUrl;
-    document.getElementById('camPreview').classList.add('show');
+const barH = Math.round(canvas.height * 0.18);
+ctx.fillStyle = 'rgba(0,0,0,0.75)';
+ctx.fillRect(0, canvas.height - barH, canvas.width, barH);
+
+// Nombre
+ctx.fillStyle = '#D4A017';
+ctx.font = 'bold ' + Math.round(canvas.width * 0.038) + 'px Arial';
+ctx.textAlign = 'left';
+ctx.fillText(
+    'ESEFIP — ' + GUARDIA_NOMBRE,
+    14,
+    canvas.height - barH + Math.round(barH * 0.28)
+);
+
+// Fecha y hora
+ctx.fillStyle = '#ffffff';
+ctx.font = Math.round(canvas.width * 0.03) + 'px Arial';
+
+const fechaTexto = new Date().toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+});
+
+ctx.fillText(
+    fechaTexto,
+    14,
+    canvas.height - barH + Math.round(barH * 0.58)
+);
+
+// GPS / ubicación
+const ubicacion = gpsData.zona && gpsData.zona !== 'No disponible'
+    ? `${gpsData.zona}, ${gpsData.ciudad}`
+    : 'Sin GPS';
+
+ctx.fillText(
+    '📍 ' + ubicacion,
+    14,
+    canvas.height - barH + Math.round(barH * 0.84)
+);
+
+fotoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+document.getElementById('fotoPreviewImg').src = fotoDataUrl;
+document.getElementById('camPreview').classList.add('show');
 }
 
 function retomar() { document.getElementById('camPreview').classList.remove('show'); fotoDataUrl=null; }
