@@ -391,6 +391,7 @@ if (!guardia) throw new Error('No auth');
 const GUARDIA_ID     = guardia.id;
 const GUARDIA_NOMBRE = guardia.nombre + ' ' + guardia.apellido;
 const GUARDIA_CEDULA = guardia.cedula;
+let GUARDIA_TELEGRAM_CHAT = guardia.telegram_chat_id || null;
 
 document.getElementById('userAvatar').textContent  = guardia.nombre[0].toUpperCase();
 document.getElementById('userName').textContent    = GUARDIA_NOMBRE;
