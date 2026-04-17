@@ -849,20 +849,22 @@ async function enviarAsistencia(fotoBlob) {
         '\n🔐 Método: biometria';
 
     async function guardarOffline_asistencia() {
-        await OfflineDB.guardar('asistencia', {
-            uid: GUARDIA_ID,
-            tipo: pendingTipo,
-            gps: { ...gpsData },
-            metodo: 'biometria',
-            dispositivo: getDeviceId(),
-            puesto: GUARDIA_PUESTO
-        });
+    await OfflineDB.guardar('asistencia', {
+        uid: GUARDIA_ID,
+        tipo: pendingTipo,
+        gps: { ...gpsData },
+        metodo: 'biometria',
+        dispositivo: getDeviceId(),
+        puesto: GUARDIA_PUESTO
+    });
 
-        al.className = 'alert alert-warning show';
-        al.innerHTML =
-            '<i class="fas fa-cloud-upload-alt"></i> ' +
-            'Sin conexión — registro guardado localmente.';
-    }
+    al.className = 'alert alert-warning show';
+    al.innerHTML =
+        '<i class="fas fa-cloud-upload-alt"></i> ' +
+        'Sin conexión — registro guardado localmente.';
+
+    actualizarIndicadorConexion();
+}
 
     if (navigator.onLine) {
         try {
@@ -885,8 +887,9 @@ async function enviarAsistencia(fotoBlob) {
 
             loadAsistenciasHoy();
         } catch (e) {
-            await guardarOffline_asistencia();
-        }
+    console.error('Error al registrar asistencia:', e);
+    await guardarOffline_asistencia();
+}
     } else {
         await guardarOffline_asistencia();
     }
