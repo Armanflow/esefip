@@ -840,8 +840,7 @@ async function enviarAsistencia(fotoBlob) {
             ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>`
             : '') +
         `\n⏰ ${now}` +
-        (gpsData.zona &&
-        gpsData.zona !== 'No disponible'
+        (gpsData.zona && gpsData.zona !== 'No disponible'
             ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}`
             : '') +
         (gpsData.lat
@@ -862,9 +861,7 @@ async function enviarAsistencia(fotoBlob) {
         al.className = 'alert alert-warning show';
         al.innerHTML =
             '<i class="fas fa-cloud-upload-alt"></i> ' +
-            'Sin conexión — guardado localmente';
-
-        actualizarIndicadorConexion();
+            'Sin conexión — registro guardado localmente.';
     }
 
     if (navigator.onLine) {
@@ -895,7 +892,7 @@ async function enviarAsistencia(fotoBlob) {
     }
 
     actualizarIndicadorConexion();
-}
+                                          }
 
 async function loadAsistenciasHoy() {
     const data = await GuardiaAPI.asistenciasHoy(GUARDIA_ID);
@@ -1296,58 +1293,7 @@ function showAlertAsist(msg, tipo='info') {
     al.innerHTML = msg;
 }
 
-// Wrapper de enviar asistencia con fallback offline
-async function enviarAsistencia(fotoBlob) {
-    const al = document.getElementById('alertAsist');
-    al.className='alert alert-info show';
-    al.innerHTML='<i class="fas fa-spinner fa-spin"></i> Registrando ' + pendingTipo + '...';
-
-    const ico = pendingTipo==='entrada'?'🟢':'🔴';
-    const now = new Date().toLocaleString('es-ES');
-    const msg = `${ico} <b>${pendingTipo.toUpperCase()} — ESEFIP</b>\n\n👤 ${GUARDIA_NOMBRE}\n🪪 ${GUARDIA_CEDULA}` +
-        (GUARDIA_PUESTO ? `\n🏢 Puesto: <b>${GUARDIA_PUESTO}</b>` : '') +
-        `\n⏰ ${now}` +
-        (gpsData.zona && gpsData.zona!=='No disponible' ? `\n📍 ${gpsData.zona}, ${gpsData.ciudad}` : '') +
-        (gpsData.lat ? `\n🗺️ GPS: ${gpsData.lat}, ${gpsData.lon}` : '\n⚠️ Sin GPS') +
-        '\n🔐 Método: biometria';
-
-    if if (navigator.onLine) {
-    try {
-        await enviarATodos(msg, fotoBlob);
-
-        await GuardiaAPI.registrarAsistencia(
-            GUARDIA_ID,
-            pendingTipo,
-            gpsData,
-            'biometria',
-            fotoBlob,
-            getDeviceId(),
-            GUARDIA_PUESTO
-        );
-
-        al.className = 'alert alert-success show';
-        al.innerHTML = `<i class="fas fa-check-circle"></i> ${pendingTipo.charAt(0).toUpperCase()+pendingTipo.slice(1)} registrada.`;
-
-        loadAsistenciasHoy();
-    } catch(e) {
-        await guardarOffline_asistencia();
-    }
-} else {
-    await guardarOffline_asistencia();
-}
-
-actualizarIndicadorConexion();
-async function guardarOffline_asistencia() {
-    const al = document.getElementById('alertAsist');
-    await OfflineDB.guardar('asistencia', {
-        uid: GUARDIA_ID, tipo: pendingTipo,
-        gps: {...gpsData}, metodo: 'biometria',
-        dispositivo: getDeviceId(), puesto: GUARDIA_PUESTO
-    });
-    al.className='alert alert-warning show';
-    al.innerHTML='<i class="fas fa-cloud-upload-alt"></i> Sin conexión — registro guardado localmente. Se enviará cuando haya internet.';
-    actualizarIndicadorConexion();
-}
+ 
 
 window.addEventListener('online',  () => { actualizarIndicadorConexion(); sincronizarOffline(); });
 window.addEventListener('offline', () => actualizarIndicadorConexion());
