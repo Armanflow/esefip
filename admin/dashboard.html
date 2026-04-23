@@ -1,0 +1,2572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESEFIP - Panel Administrador</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="../js/supabase.js"></script>
+    <style>
+        :root{--primary:#D4A017;--primary-dark:#b8860b;--bg:#080f1a;--sidebar-bg:#0a1628;--accent:#1a3a6b;--card:rgba(10,22,40,0.9);--text:#f1f5f9;--text-muted:#94a3b8;--border:rgba(212,160,23,0.15);--success:#10b981;--warning:#f59e0b;--error:#ef4444;--info:#3b82f6;--radius:14px}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+        .sidebar{width:260px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s ease}
+        .sidebar.open{transform:translateX(0)}
+        .sidebar-logo{padding:24px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+        .logo-badge{width:44px;height:44px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+        .logo-text strong{display:block;font-size:18px;letter-spacing:2px;background:linear-gradient(135deg,var(--primary),#f0c040);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .logo-text span{font-size:11px;color:var(--text-muted)}
+        .admin-badge{padding:12px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+        .admin-avatar{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#2a4a8b);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--primary);font-weight:700}
+        .admin-name{font-size:13px;font-weight:600}
+        .admin-role{font-size:11px;color:var(--primary)}
+        .nav-section{padding:16px 12px 8px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+        .nav-item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:10px;color:var(--text-muted);font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;margin:2px 8px;text-decoration:none;border:none;background:none;width:calc(100% - 16px);text-align:left}
+        .nav-item i{width:18px;text-align:center;font-size:15px}
+        .nav-item:hover{background:rgba(212,160,23,0.1);color:var(--primary)}
+        .nav-item.active{background:linear-gradient(135deg,rgba(212,160,23,0.2),rgba(212,160,23,0.05));color:var(--primary);border:1px solid rgba(212,160,23,0.2)}
+        .nav-item .badge-count{margin-left:auto;background:var(--error);color:white;font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600}
+        .sidebar-footer{margin-top:auto;padding:16px 12px;border-top:1px solid var(--border)}
+        .main-content{margin-left:260px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+        .topbar{background:rgba(10,22,40,0.98);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+        .topbar-left{display:flex;align-items:center;gap:14px}
+        .menu-toggle{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px}
+        .page-title{font-size:18px;font-weight:700}
+        .topbar-right{display:flex;align-items:center;gap:12px}
+        .topbar-time{font-size:13px;color:var(--text-muted);background:rgba(255,255,255,0.05);padding:6px 12px;border-radius:8px}
+        .btn-logout{padding:8px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#fca5a5;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+        .btn-logout:hover{background:rgba(239,68,68,0.2)}
+        .content{padding:28px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-bottom:28px}
+        .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;position:relative;overflow:hidden;transition:transform .2s}
+        .stat-card:hover{transform:translateY(-3px)}
+        .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+        .stat-card.gold::before{background:linear-gradient(90deg,var(--primary),var(--primary-dark))}
+        .stat-card.blue::before{background:linear-gradient(90deg,#3b82f6,#1d4ed8)}
+        .stat-card.green::before{background:linear-gradient(90deg,#10b981,#059669)}
+        .stat-card.red::before{background:linear-gradient(90deg,#ef4444,#dc2626)}
+        .stat-card.cyan::before{background:linear-gradient(90deg,#06b6d4,#0891b2)}
+        .stat-card.purple::before{background:linear-gradient(90deg,#8b5cf6,#6d28d9)}
+        .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+        .stat-card.gold .stat-icon{background:rgba(212,160,23,0.15);color:var(--primary)}
+        .stat-card.blue .stat-icon{background:rgba(59,130,246,0.15);color:#60a5fa}
+        .stat-card.green .stat-icon{background:rgba(16,185,129,0.15);color:#34d399}
+        .stat-card.red .stat-icon{background:rgba(239,68,68,0.15);color:#f87171}
+        .stat-card.cyan .stat-icon{background:rgba(6,182,212,0.15);color:#22d3ee}
+        .stat-card.purple .stat-icon{background:rgba(139,92,246,0.15);color:#a78bfa}
+        .stat-value{font-size:32px;font-weight:800;line-height:1;margin-bottom:4px}
+        .stat-label{font-size:13px;color:var(--text-muted)}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+        .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+        .panel-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .panel-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .panel-title i{color:var(--primary)}
+        .panel-body{padding:20px}
+        .btn-sm{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;border:none}
+        .btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#0a1628}
+        .btn-primary:hover{box-shadow:0 4px 15px rgba(212,160,23,0.4)}
+        .btn-info{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
+        .btn-success{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)}
+        .btn-danger{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)}
+        .btn-warning{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)}
+        .table-responsive{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        th{padding:10px 14px;text-align:left;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
+        td{padding:12px 14px;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.04)}
+        tr:hover td{background:rgba(212,160,23,0.03)}
+        tr:last-child td{border-bottom:none}
+        .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+        .badge-success{background:rgba(16,185,129,0.15);color:#34d399}
+        .badge-warning{background:rgba(245,158,11,0.15);color:#fbbf24}
+        .badge-error{background:rgba(239,68,68,0.15);color:#f87171}
+        .badge-info{background:rgba(59,130,246,0.15);color:#60a5fa}
+        .badge-muted{background:rgba(148,163,184,0.15);color:#94a3b8}
+        .tabs{display:flex;gap:4px;padding:14px 20px 0;border-bottom:1px solid var(--border)}
+        .tab-btn{padding:10px 18px;border:none;background:none;color:var(--text-muted);font-size:14px;font-weight:500;cursor:pointer;border-radius:8px 8px 0 0;transition:all .2s;border-bottom:2px solid transparent;display:flex;align-items:center;gap:7px}
+        .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);background:rgba(212,160,23,0.05)}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+        .modal-overlay.open{display:flex}
+        .modal-box{background:#0d1e35;border:1px solid var(--border);border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:modalIn .3s ease}
+        @keyframes modalIn{from{opacity:0;transform:scale(0.94) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+        .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+        .modal-title{font-size:18px;font-weight:700}
+        .modal-close{background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;transition:color .2s}
+        .modal-close:hover{color:var(--error)}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        .form-group{margin-bottom:16px}
+        .form-group label{display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;font-weight:500}
+        .form-control{width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;transition:all .2s}
+        .form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(212,160,23,0.1)}
+        select.form-control{appearance:none;cursor:pointer}
+        textarea.form-control{resize:vertical;min-height:80px}
+        .chart-wrap{position:relative;height:240px}
+        .alert-toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;display:none;align-items:center;gap:10px;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,0.4);animation:toastIn .3s ease}
+        @keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .alert-toast.success{background:#065f46;border:1px solid #10b981;color:#34d399}
+        .alert-toast.error{background:#7f1d1d;border:1px solid #ef4444;color:#fca5a5}
+        .alert-toast.info{background:#1e3a5f;border:1px solid #3b82f6;color:#93c5fd}
+        .qr-viewer-title{font-size:16px;font-weight:700;text-align:center;margin-bottom:4px}
+        .qr-viewer-sub{font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:16px}
+        .qr-canvas-wrap{display:flex;justify-content:center;margin-bottom:16px;background:white;border-radius:12px;padding:16px}
+        .qr-viewer-btns{display:flex;gap:10px;justify-content:center}
+        .filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+        .filter-bar input,.filter-bar select{padding:9px 12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px}
+        /* Resumen financiero */
+        .fin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+        .fin-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+        .fin-val{font-size:22px;font-weight:800;margin-bottom:2px}
+        .fin-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+        /* Config */
+        .cfg-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+        .cfg-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:var(--primary)}
+        /* Guardias hoy */
+        .hoy-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .hoy-item:last-child{border-bottom:none}
+        .hoy-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+        /* Próximos turnos */
+        .turno-prox{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .turno-prox:last-child{border-bottom:none}
+        /* Búsqueda guardias */
+        .search-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+        .search-bar input{flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px}
+        .search-bar input:focus{outline:none;border-color:var(--primary)}
+        /* Log actividad */
+        .log-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .log-item:last-child{border-bottom:none}
+        .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px}
+        .log-dot.edit{background:#3b82f6}.log-dot.pay{background:#10b981}
+        .log-dot.create{background:#D4A017}.log-dot.delete{background:#ef4444}
+        .log-dot.view{background:#8b5cf6}
+        /* Historial guardia modal */
+        .hist-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
+        .hist-tab{padding:8px 14px;border:none;background:none;color:var(--text-muted);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+        .hist-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+        /* Guardias inactivos */
+        .inactivo-row{opacity:.65}
+        /* Gráfico puntualidad */
+        .punch-bar{height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-top:4px}
+        .punch-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+        /* Foto perfil */
+        .avatar-upload{position:relative;width:80px;height:80px;margin:0 auto 16px}
+        .avatar-img{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)}
+        .avatar-placeholder{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#1a3a6b,#2a4a8b);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--primary);font-weight:700;border:3px solid var(--primary)}
+        .avatar-btn{position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--primary);border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#0a1628}
+        /* QR banco */
+        .qr-banco-preview{width:100%;max-width:200px;border-radius:10px;border:2px solid var(--border);margin-top:8px}
+        /* Permisos */
+        .permiso-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+        .permiso-estado{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+        .permiso-pendiente{background:rgba(245,158,11,0.15);color:#fbbf24}
+        .permiso-aprobado{background:rgba(16,185,129,0.15);color:#34d399}
+        .permiso-rechazado{background:rgba(239,68,68,0.15);color:#f87171}
+        /* Etapas */
+        .etapas-wrap{display:flex;align-items:center;gap:0;margin:8px 0}
+        .etapa-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+        .etapa-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;z-index:1;border:2px solid}
+        .etapa-circle.done{background:#10b981;border-color:#10b981;color:white}
+        .etapa-circle.active{background:var(--primary);border-color:var(--primary);color:#0a1628;box-shadow:0 0 0 3px rgba(212,160,23,0.3)}
+        .etapa-circle.pending{background:rgba(255,255,255,0.05);border-color:var(--border);color:var(--text-muted)}
+        .etapa-label{font-size:10px;color:var(--text-muted);margin-top:4px;text-align:center}
+        .etapa-line{position:absolute;top:14px;left:50%;right:-50%;height:2px;z-index:0}
+        .etapa-line.done{background:#10b981}
+        .etapa-line.pending{background:var(--border)}
+        @media(max-width:900px){
+            .sidebar{transform:translateX(-100%)}
+            .sidebar.open{transform:translateX(0)}
+            .main-content{margin-left:0}
+            .menu-toggle{display:block}
+            .grid-2{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-badge">🛡️</div>
+        <div class="logo-text">
+            <strong>ESEFIP</strong>
+            <span>Sistema de Seguridad</span>
+        </div>
+    </div>
+    <div class="admin-badge">
+        <div class="admin-avatar" id="adminAvatar">A</div>
+        <div>
+            <div class="admin-name" id="adminName">Administrador</div>
+            <div class="admin-role">Admin</div>
+        </div>
+    </div>
+    <div class="nav-section">Principal</div>
+    <button class="nav-item active" id="nav-dashboard" onclick="showTab('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+    <button class="nav-item" id="nav-guardias" onclick="showTab('guardias')"><i class="fas fa-user-shield"></i> Guardias</button>
+    <div class="nav-section">Operaciones</div>
+    <button class="nav-item" id="nav-asistencias" onclick="showTab('asistencias')"><i class="fas fa-fingerprint"></i> Asistencias</button>
+    <button class="nav-item" id="nav-rondas" onclick="showTab('rondas')"><i class="fas fa-route"></i> Rondas</button>
+    <button class="nav-item" id="nav-novedades" onclick="showTab('novedades')"><i class="fas fa-bell"></i> Novedades <span class="badge-count" id="novBadge" style="display:none">0</span></button>
+    <button class="nav-item" id="nav-permisos" onclick="showTab('permisos')"><i class="fas fa-calendar-check"></i> Permisos <span class="badge-count" id="permisosBadge" style="display:none">0</span></button>
+    <div class="nav-section">Administración</div>
+    <button class="nav-item" id="nav-pagos" onclick="showTab('pagos')"><i class="fas fa-money-bill-wave"></i> Pagos</button>
+    <button class="nav-item" id="nav-qrcodes" onclick="showTab('qrcodes')"><i class="fas fa-qrcode"></i> Puntos QR</button>
+    <button class="nav-item" id="nav-reportes" onclick="showTab('reportes')"><i class="fas fa-chart-bar"></i> Reportes</button>
+    <button class="nav-item" id="nav-mapa" onclick="showTab('mapa')"><i class="fas fa-map-marked-alt"></i> Mapa en Vivo</button>
+    <button class="nav-item" id="nav-inactivos" onclick="showTab('inactivos')"><i class="fas fa-user-slash"></i> Papelera</button>
+    <button class="nav-item" id="nav-log" onclick="showTab('log')"><i class="fas fa-history"></i> Actividad</button>
+    <div class="nav-section">Sistema</div>
+    <button class="nav-item" id="nav-financiero" onclick="showTab('financiero')"><i class="fas fa-chart-pie"></i> Finanzas</button>
+    <button class="nav-item" id="nav-config" onclick="showTab('config')"><i class="fas fa-cog"></i> Configuración</button>
+    <div class="sidebar-footer">
+        <button class="nav-item btn-logout" style="color:#fca5a5" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</button>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main-content">
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+            <div class="page-title" id="pageTitle">Dashboard</div>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-time" id="clock">--:--:--</div>
+            <button class="btn-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Salir</button>
+        </div>
+    </div>
+
+    <div class="content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="tab-dashboard" class="tab-content active">
+        <div class="stats-grid">
+            <div class="stat-card gold"><div class="stat-icon"><i class="fas fa-user-shield"></i></div><div class="stat-value" id="s-guardias">—</div><div class="stat-label">Guardias Activos</div></div>
+            <div class="stat-card green"><div class="stat-icon"><i class="fas fa-sign-in-alt"></i></div><div class="stat-value" id="s-presentes">—</div><div class="stat-label">Presentes Hoy</div></div>
+            <div class="stat-card blue"><div class="stat-icon"><i class="fas fa-fingerprint"></i></div><div class="stat-value" id="s-asist">—</div><div class="stat-label">Asistencias Hoy</div></div>
+            <div class="stat-card cyan"><div class="stat-icon"><i class="fas fa-route"></i></div><div class="stat-value" id="s-rondas">—</div><div class="stat-label">Rondas Hoy</div></div>
+            <div class="stat-card red"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-value" id="s-pagos">—</div><div class="stat-label">Pagos Pendientes</div></div>
+            <div class="stat-card purple"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value" id="s-total">—</div><div class="stat-label">Pagado Este Mes</div></div>
+        </div>
+        <div class="grid-2">
+            <div class="panel"><div class="panel-header"><div class="panel-title"><i class="fas fa-chart-bar"></i> Asistencias del Mes</div></div><div class="panel-body"><div class="chart-wrap"><canvas id="chartAsistencias"></canvas></div></div></div>
+            <div class="panel"><div class="panel-header"><div class="panel-title"><i class="fas fa-chart-line"></i> Rondas del Mes</div></div><div class="panel-body"><div class="chart-wrap"><canvas id="chartRondas"></canvas></div></div></div>
+        </div>
+        <div class="grid-2">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-times-circle" style="color:#ef4444"></i> Faltas de Hoy</div>
+                    <button class="btn-sm btn-info" onclick="loadFaltasHoy()" style="font-size:11px"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div class="panel-body" id="listaFaltasHoy" style="max-height:220px;overflow-y:auto">
+                    <div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i class="fas fa-business-time" style="color:#D4A017"></i> Próximos Turnos</div>
+                    <span style="font-size:11px;color:var(--text-muted)">Próximas 3 horas</span>
+                </div>
+                <div class="panel-body" id="listaProxTurnos" style="max-height:220px;overflow-y:auto">
+                    <div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ GUARDIAS ═══ -->
+    <div id="tab-guardias" class="tab-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+            <div class="search-bar" style="margin-bottom:0;flex:1;min-width:200px">
+                <i class="fas fa-search" style="color:var(--text-muted)"></i>
+                <input type="text" id="buscarGuardia" placeholder="Buscar por nombre o cédula..." oninput="filtrarGuardias(this.value)">
+            </div>
+            <button class="btn-sm btn-primary" onclick="openModalGuardia()"><i class="fas fa-user-plus"></i> Nuevo Guardia</button>
+        </div>
+        <div class="panel"><div class="table-responsive" id="tablaGuardias"><div style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i></div></div></div>
+    </div>
+
+    <!-- ═══ ASISTENCIAS ═══ -->
+    <div id="tab-asistencias" class="tab-content">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-fingerprint"></i> Registro de Asistencias</div>
+                <button class="btn-sm btn-warning" onclick="openModal('modalEntradaManual')">
+                    <i class="fas fa-hand-point-up"></i> Entrada Manual
+                </button>
+            </div>
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <input type="date" id="asistDesde" style="color:var(--text)">
+                    <input type="date" id="asistHasta" style="color:var(--text)">
+                    <select id="filtroAsistGuardia" style="color:var(--text)"><option value="">Todos los guardias</option></select>
+                    <button class="btn-sm btn-primary" onclick="loadAsistencias()"><i class="fas fa-search"></i> Filtrar</button>
+                    <button class="btn-sm btn-danger" onclick="filtrarFaltasHoy()"><i class="fas fa-times-circle"></i> Solo Faltas Hoy</button>
+                </div>
+                <div class="table-responsive" id="tablaAsistencias"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ RONDAS ═══ -->
+    <div id="tab-rondas" class="tab-content">
+        <div class="panel">
+            <div class="panel-header"><div class="panel-title"><i class="fas fa-route"></i> Registro de Rondas</div></div>
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <input type="date" id="rondasDesde" style="color:var(--text)">
+                    <input type="date" id="rondasHasta" style="color:var(--text)">
+                    <select id="filtroRondasGuardia" style="color:var(--text)"><option value="">Todos los guardias</option></select>
+                    <button class="btn-sm btn-primary" onclick="loadRondas()"><i class="fas fa-search"></i> Filtrar</button>
+                </div>
+                <div class="table-responsive" id="tablaRondas"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ NOVEDADES ═══ -->
+    <div id="tab-novedades" class="tab-content">
+        <div class="panel"><div class="panel-header"><div class="panel-title"><i class="fas fa-bell"></i> Novedades Reportadas</div><button class="btn-sm btn-info" onclick="loadNovedades()"><i class="fas fa-sync-alt"></i></button></div><div class="table-responsive" id="tablaNovedades"></div></div>
+    </div>
+
+    <!-- ═══ PAGOS ═══ -->
+    <div id="tab-pagos" class="tab-content">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchSubTab('pagos','planilla')"><i class="fas fa-list"></i> Planilla</button>
+            <button class="tab-btn" onclick="switchSubTab('pagos','descuentos')"><i class="fas fa-minus-circle"></i> Descuentos</button>
+        </div>
+        <div id="subtab-planilla" class="tab-content active" style="padding:20px">
+            <div class="filter-bar">
+                <select id="pagoMes" style="color:var(--text)"></select>
+                <select id="pagoAnio" style="color:var(--text)"></select>
+                <button class="btn-sm btn-primary" onclick="loadPagos()"><i class="fas fa-search"></i> Ver</button>
+                <button class="btn-sm btn-warning" onclick="generarPagos()"><i class="fas fa-cog"></i> Generar Pagos</button>
+            </div>
+            <div class="table-responsive" id="tablaPagos"></div>
+        </div>
+        <div id="subtab-descuentos" class="tab-content" style="padding:20px">
+            <div class="filter-bar">
+                <select id="descMes" style="color:var(--text)"></select>
+                <select id="descAnio" style="color:var(--text)"></select>
+                <button class="btn-sm btn-primary" onclick="loadDescuentos()"><i class="fas fa-search"></i> Ver</button>
+            </div>
+            <div class="table-responsive" id="tablaDescuentos"></div>
+        </div>
+    </div>
+
+    <!-- ═══ QR ═══ -->
+    <div id="tab-qrcodes" class="tab-content">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+            <button class="btn-sm btn-primary" onclick="openModal('modalQR')"><i class="fas fa-plus"></i> Nuevo Punto QR</button>
+        </div>
+        <div class="panel"><div class="table-responsive" id="tablaQR"></div></div>
+    </div>
+
+    <!-- ═══ MAPA EN VIVO ═══ -->
+    <div id="tab-mapa" class="tab-content">
+        <div class="panel" style="overflow:hidden">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-map-marked-alt"></i> Guardias en Servicio</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span id="mapaContador" style="font-size:13px;color:var(--text-muted)">—</span>
+                    <button class="btn-sm btn-info" onclick="initMapa()"><i class="fas fa-sync-alt"></i> Actualizar</button>
+                </div>
+            </div>
+            <div id="mapaContainer" style="height:500px;background:#0a1628;position:relative">
+                <div id="mapaLeaflet" style="height:100%;width:100%;z-index:1"></div>
+                <div id="mapaOverlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;background:rgba(8,15,26,0.8)">
+                    <div style="text-align:center;color:var(--text-muted)"><i class="fas fa-map fa-3x" style="color:var(--primary);margin-bottom:12px;display:block"></i>Cargando mapa...</div>
+                </div>
+            </div>
+            <div id="mapaLeyenda" style="padding:16px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px">
+                <span><span style="color:#34d399">●</span> Presente hoy</span>
+                <span><span style="color:#f87171">●</span> Sin entrada hoy</span>
+                <span><span style="color:#D4A017">●</span> Puesto asignado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ REPORTES ═══ -->
+    <div id="tab-reportes" class="tab-content">
+        <div class="panel" style="margin-bottom:20px">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-chart-bar"></i> Reporte General</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <select id="repMes" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px"></select>
+                    <select id="repAnio" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px"></select>
+                    <select id="repFiltroGuardia" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px">
+                        <option value="">Todos los guardias</option>
+                    </select>
+                    <button class="btn-sm btn-primary" onclick="loadReporte()"><i class="fas fa-search"></i> Generar</button>
+                    <button class="btn-sm btn-success" onclick="exportarReporte()"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button class="btn-sm btn-danger" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <div class="table-responsive" id="tablaReporte"><div style="padding:30px;text-align:center;color:var(--text-muted)">Seleccione período y genere el reporte</div></div>
+        </div>
+        <!-- Gráfico puntualidad -->
+        <div class="panel" id="panelPuntualidad" style="display:none">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-stopwatch"></i> Puntualidad por Guardia</div>
+                <div style="font-size:12px;color:var(--text-muted)">Atrasos y faltas del período</div>
+            </div>
+            <div class="panel-body" id="grafPuntualidad"></div>
+        </div>
+    </div>
+
+    <!-- ═══ INACTIVOS ═══ -->
+    <div id="tab-inactivos" class="tab-content">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-user-slash"></i> Guardias Desactivados</div>
+                <button class="btn-sm btn-info" onclick="loadInactivos()"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div class="table-responsive" id="tablaInactivos">
+                <div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ LOG ACTIVIDAD ═══ -->
+    <div id="tab-log" class="tab-content">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-history"></i> Registro de Actividad del Admin</div>
+                <button class="btn-sm btn-info" onclick="loadLog()"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div id="listaLog" style="padding:20px">
+                <div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ FINANCIERO ═══ -->
+    <div id="tab-financiero" class="tab-content">
+        <div class="filter-bar" style="margin-bottom:20px">
+            <select id="finMes" style="color:var(--text)"></select>
+            <select id="finAnio" style="color:var(--text)"></select>
+            <button class="btn-sm btn-primary" onclick="loadFinanciero()"><i class="fas fa-search"></i> Ver</button>
+        </div>
+        <div class="fin-grid">
+            <div class="fin-card"><div class="fin-val" id="fin-base" style="color:var(--primary)">—</div><div class="fin-label">Total Salarios Base</div></div>
+            <div class="fin-card"><div class="fin-val" id="fin-desc" style="color:#f87171">—</div><div class="fin-label">Total Descuentos</div></div>
+            <div class="fin-card"><div class="fin-val" id="fin-bonos" style="color:#34d399">—</div><div class="fin-label">Total Bonos</div></div>
+            <div class="fin-card"><div class="fin-val" id="fin-pagar" style="color:#fbbf24">—</div><div class="fin-label">Total a Pagar</div></div>
+            <div class="fin-card"><div class="fin-val" id="fin-pagado" style="color:#34d399">—</div><div class="fin-label">Ya Pagado</div></div>
+            <div class="fin-card"><div class="fin-val" id="fin-pendiente" style="color:#f87171">—</div><div class="fin-label">Pendiente</div></div>
+        </div>
+        <div class="panel">
+            <div class="panel-header"><div class="panel-title"><i class="fas fa-list"></i> Detalle por Guardia</div></div>
+            <div class="table-responsive" id="tablaFinanciero"></div>
+        </div>
+    </div>
+
+    <!-- ═══ PERMISOS ═══ -->
+    <div id="tab-permisos" class="tab-content">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-calendar-check"></i> Solicitudes de Permiso</div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn-sm btn-warning" onclick="loadPermisos('pendiente')"><i class="fas fa-clock"></i> Pendientes</button>
+                    <button class="btn-sm btn-info" onclick="loadPermisos()"><i class="fas fa-list"></i> Todos</button>
+                </div>
+            </div>
+            <div id="listaPermisos" style="padding:20px">
+                <div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CONFIG ═══ -->
+    <div id="tab-config" class="tab-content">
+        <div class="cfg-section">
+            <div class="cfg-title"><i class="fas fa-lock"></i> Cambiar Contraseña del Admin</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Contraseña actual</label>
+                    <input class="form-control" type="password" id="cfgPassActual" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>Nueva contraseña</label>
+                    <input class="form-control" type="password" id="cfgPassNueva" placeholder="••••••••">
+                </div>
+            </div>
+            <button class="btn-sm btn-primary" onclick="cambiarPassword()"><i class="fas fa-save"></i> Guardar Contraseña</button>
+        </div>
+        <div class="cfg-section">
+            <div class="cfg-title"><i class="fab fa-telegram"></i> Mensaje de Bienvenida del Bot</div>
+            <div class="form-group">
+                <label>Mensaje que envía el bot al iniciar el sistema</label>
+                <textarea class="form-control" id="cfgBotBienvenida" rows="3" placeholder="Ej: ¡Bienvenido al sistema ESEFIP! Tu turno ha comenzado."></textarea>
+            </div>
+            <button class="btn-sm btn-primary" onclick="guardarBienvenida()"><i class="fas fa-save"></i> Guardar Mensaje</button>
+            <button class="btn-sm btn-info" style="margin-left:8px" onclick="probarBienvenida()"><i class="fas fa-paper-plane"></i> Enviar Prueba</button>
+        </div>
+        <div class="cfg-section">
+            <div class="cfg-title"><i class="fas fa-paper-plane"></i> Mensajes a Guardias</div>
+            <div class="form-group">
+                <label>Guardia destinatario</label>
+                <select class="form-control" id="msgGuardiaId">
+                    <option value="todos">📢 Todos los guardias</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Mensaje</label>
+                <textarea class="form-control" id="msgTexto" rows="3" placeholder="Escribe el mensaje para el/los guardia(s)..."></textarea>
+            </div>
+            <button class="btn-sm btn-primary" onclick="enviarMensajeGuardia()"><i class="fas fa-paper-plane"></i> Enviar por Telegram</button>
+        </div>
+        <div class="cfg-section">
+            <div class="cfg-title"><i class="fas fa-plus-circle"></i> Descuento / Bono Manual</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Guardia</label>
+                    <select class="form-control" id="manualGuardiaId"></select>
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select class="form-control" id="manualTipo">
+                        <option value="descuento">➖ Descuento</option>
+                        <option value="bono">➕ Bono</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Monto (Bs)</label>
+                    <input class="form-control" type="number" id="manualMonto" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Motivo</label>
+                    <input class="form-control" id="manualMotivo" placeholder="Ej: Horas extra, uniforme...">
+                </div>
+            </div>
+            <button class="btn-sm btn-primary" onclick="aplicarManual()"><i class="fas fa-check"></i> Aplicar</button>
+        </div>
+    </div>
+
+    </div><!-- /content -->
+</main>
+
+<!-- MODAL ENTRADA MANUAL -->
+<div class="modal-overlay" id="modalEntradaManual">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-hand-point-up"></i> Registrar Entrada Manual</div>
+            <button class="modal-close" onclick="closeModal('modalEntradaManual')"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:#fbbf24">
+            <i class="fas fa-info-circle"></i> Usar solo cuando el guardia no puede registrar desde su dispositivo.
+        </div>
+        <div class="form-group">
+            <label>Guardia *</label>
+            <select class="form-control" id="manEntradaGuardia"></select>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Tipo *</label>
+                <select class="form-control" id="manEntradaTipo">
+                    <option value="entrada">🟢 Entrada</option>
+                    <option value="salida">🔴 Salida</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Hora (vacío = ahora)</label>
+                <input class="form-control" type="time" id="manEntradaHora">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Motivo</label>
+            <input class="form-control" id="manEntradaMotivo" placeholder="Ej: Sin batería, sin internet...">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sm btn-primary" style="flex:1;padding:13px" onclick="registrarEntradaManual()"><i class="fas fa-check"></i> Registrar</button>
+            <button class="btn-sm btn-danger" onclick="closeModal('modalEntradaManual')" style="padding:13px 18px">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL GUARDIA -->
+<div class="modal-overlay" id="modalHistGuardia">
+    <div class="modal-box" style="max-width:700px">
+        <div class="modal-header">
+            <div class="modal-title" id="histGuardiaTitle"><i class="fas fa-user"></i> Historial</div>
+            <button class="modal-close" onclick="closeModal('modalHistGuardia')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="hist-tabs">
+            <button class="hist-tab active" onclick="switchHistTab('asist',this)"><i class="fas fa-fingerprint"></i> Asistencias</button>
+            <button class="hist-tab" onclick="switchHistTab('rondas',this)"><i class="fas fa-route"></i> Rondas</button>
+            <button class="hist-tab" onclick="switchHistTab('pagos',this)"><i class="fas fa-money-bill-wave"></i> Pagos</button>
+            <button class="hist-tab" onclick="switchHistTab('descuentos',this)"><i class="fas fa-minus-circle"></i> Descuentos</button>
+        </div>
+        <div id="histContent" style="max-height:400px;overflow-y:auto">
+            <div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL GUARDIA -->
+<div class="modal-overlay" id="modalGuardia">
+    <div class="modal-box" style="max-width:600px">
+        <div class="modal-header">
+            <div class="modal-title" id="modalGuardiaTitle"><i class="fas fa-user-plus"></i> Nuevo Guardia</div>
+            <button class="modal-close" onclick="closeModal('modalGuardia')"><i class="fas fa-times"></i></button>
+        </div>
+        <input type="hidden" id="guardiaId">
+        <!-- Foto de perfil -->
+        <div style="text-align:center;margin-bottom:16px">
+            <div class="avatar-upload" id="avatarUpload" onclick="document.getElementById('inputFotoPerfil').click()" style="cursor:pointer">
+                <div class="avatar-placeholder" id="avatarPlaceholder">?</div>
+                <img id="avatarPreview" class="avatar-img" style="display:none">
+                <button class="avatar-btn" type="button"><i class="fas fa-camera"></i></button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted)">Toca para cambiar foto de perfil</div>
+            <input type="file" id="inputFotoPerfil" accept="image/*" style="display:none" onchange="previsualizarFotoPerfil(this)">
+        </div>
+        <div style="font-size:12px;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600"><i class="fas fa-user"></i> Datos Personales</div>
+        <div class="form-row">
+            <div class="form-group"><label>Nombre *</label><input class="form-control" id="gNombre" required></div>
+            <div class="form-group"><label>Apellido *</label><input class="form-control" id="gApellido" required></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Cédula *</label><input class="form-control" id="gCedula" required></div>
+            <div class="form-group"><label>Contraseña *</label><input class="form-control" id="gPassword" type="password"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Teléfono</label><input class="form-control" id="gTelefono"></div>
+            <div class="form-group"><label>Correo</label><input class="form-control" id="gCorreo" type="email"></div>
+        </div>
+        <div class="form-group">
+            <label>Chat ID de Telegram <span style="font-size:11px;color:var(--text-muted);font-weight:400">— para notificaciones personales</span></label>
+            <div style="display:flex;gap:8px">
+                <input class="form-control" id="gTelegramChatId" placeholder="Ej: 1425131487">
+                <button type="button" class="btn-sm btn-info" style="white-space:nowrap;padding:0 12px" onclick="mostrarAyudaTelegram()">
+                    <i class="fas fa-question-circle"></i> ¿Cómo obtenerlo?
+                </button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+                <i class="fas fa-info-circle"></i> El guardia debe iniciar conversación con el bot primero. Luego entrar a: 
+                <code style="background:rgba(255,255,255,0.08);padding:1px 6px;border-radius:4px">t.me/userinfobot</code> para obtener su ID.
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Puesto de trabajo <span style="color:var(--primary)">★</span></label>
+            <input class="form-control" id="gPuesto" placeholder="Ej: Iglesia San Francisco, Banco Central...">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px"><i class="fas fa-info-circle"></i> Se incluirá en todas las notificaciones Telegram</div>
+        </div>
+        <div style="font-size:12px;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;font-weight:600"><i class="fas fa-map-marker-alt"></i> Geofencing — Ubicación del Puesto</div>
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px;margin-bottom:12px;font-size:12px;color:#93c5fd">
+            <i class="fas fa-info-circle"></i> El guardia solo podrá marcar entrada si está dentro del radio definido. 
+            Haz clic en <strong>"Usar mi ubicación"</strong> para capturar las coordenadas del puesto.
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Latitud</label>
+                <input class="form-control" id="gPuestoLat" placeholder="Ej: -16.495807 o -23.550520">
+            </div>
+            <div class="form-group">
+                <label>Longitud</label>
+                <input class="form-control" id="gPuestoLon" placeholder="Ej: -68.118364 o -46.633308">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Radio permitido (metros)</label>
+                <input class="form-control" id="gPuestoRadio" type="number" value="200" min="50" max="2000">
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end">
+                <button type="button" class="btn-sm btn-info" style="width:100%;padding:11px" onclick="capturarUbicacionPuesto()">
+                    <i class="fas fa-crosshairs"></i> Usar mi ubicación
+                </button>
+            </div>
+        </div>
+        <div id="geoPreview" style="display:none;font-size:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px;margin-bottom:8px">
+            <i class="fas fa-check-circle" style="color:#34d399"></i> <span id="geoPreviewText"></span>
+            <a id="geoPreviewLink" href="#" target="_blank" style="color:#60a5fa;margin-left:8px;font-size:11px"><i class="fas fa-external-link-alt"></i> Ver en mapa</a>
+        </div>
+        <div style="font-size:12px;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;font-weight:600"><i class="fas fa-qrcode"></i> QR Bancario</div>
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px;color:#93c5fd">
+            <i class="fas fa-info-circle"></i> Foto del QR de pago del guardia para agilizar transferencias.
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+            <div>
+                <button type="button" class="btn-sm btn-info" onclick="document.getElementById('inputQRBanco').click()">
+                    <i class="fas fa-camera"></i> Subir QR de Banco
+                </button>
+                <input type="file" id="inputQRBanco" accept="image/*" style="display:none" onchange="previsualizarQRBanco(this)">
+            </div>
+            <div id="qrBancoWrap" style="display:none">
+                <img id="qrBancoPreview" class="qr-banco-preview" style="max-height:120px">
+                <div style="font-size:11px;color:#34d399;margin-top:4px"><i class="fas fa-check-circle"></i> QR cargado</div>
+            </div>
+        </div>
+        <div id="qrBancoActual" style="display:none;margin-top:8px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">QR actual:</div>
+            <img id="qrBancoActualImg" style="max-height:100px;border-radius:8px;border:1px solid var(--border)">
+            <button type="button" class="btn-sm btn-danger" style="margin-left:8px;font-size:11px;padding:3px 8px" onclick="verQRBancoGrande()"><i class="fas fa-expand"></i></button>
+        </div>
+
+        <div style="font-size:12px;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;font-weight:600"><i class="fas fa-clock"></i> Horario y Salario</div>
+        <div class="form-row">
+            <div class="form-group"><label>Turno *</label><select class="form-control" id="gTurno"><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option></select></div>
+            <div class="form-group"><label>Salario Base (Bs) *</label><input class="form-control" id="gSalario" type="number" step="0.01" oninput="actualizarHorarioPreview()"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Hora Inicio *</label><input class="form-control" id="gHoraInicio" type="time" value="08:00" oninput="actualizarHorarioPreview()"></div>
+            <div class="form-group"><label>Hora Fin *</label><input class="form-control" id="gHoraFin" type="time" value="16:00" oninput="actualizarHorarioPreview()"></div>
+        </div>
+        <div class="form-group"><label>Rondas requeridas por turno</label><input class="form-control" id="gRondasReq" type="number" min="0" value="0"></div>
+        <div class="form-group">
+            <label>Días que trabaja *</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="diasCheckboxes">
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="1" name="dias"> Dom</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="2" name="dias" checked> Lun</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="3" name="dias" checked> Mar</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="4" name="dias" checked> Mié</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="5" name="dias" checked> Jue</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="6" name="dias" checked> Vie</label>
+                <label style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);padding:7px 12px;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:13px"><input type="checkbox" value="7" name="dias"> Sáb</label>
+            </div>
+            <div id="horarioPreview" style="margin-top:10px;font-size:12px;color:var(--text-muted);background:rgba(212,160,23,0.08);border:1px solid var(--border);border-radius:8px;padding:8px 12px"></div>
+        </div>
+        <div style="font-size:12px;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;font-weight:600"><i class="fas fa-exchange-alt"></i> Relevo</div>
+        <div class="form-row">
+            <div class="form-group"><label>¿Tiene relevo?</label><select class="form-control" id="gTieneRelevo" onchange="toggleRelevo()"><option value="0">No tiene relevo</option><option value="1">Sí tiene relevo</option></select></div>
+            <div class="form-group" id="relepoSelectGroup" style="display:none"><label>Guardia de relevo</label><select class="form-control" id="gRelevaId"><option value="0">Seleccionar...</option></select></div>
+        </div>
+        <div class="form-group" id="activoGroup" style="display:none"><label>Estado</label><select class="form-control" id="gActivo"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sm btn-primary" style="flex:1;padding:13px" onclick="guardarGuardia()"><i class="fas fa-save"></i> Guardar</button>
+            <button class="btn-sm btn-danger" onclick="closeModal('modalGuardia')" style="padding:13px 18px">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PAGO -->
+<div class="modal-overlay" id="modalPago">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-money-bill-wave"></i> Registrar Pago</div>
+            <button class="modal-close" onclick="closeModal('modalPago')"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="pagoInfoGuardia" style="background:rgba(212,160,23,0.1);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;font-size:14px"></div>
+        <input type="hidden" id="pagoId">
+        <div class="form-row">
+            <div class="form-group"><label>Bonos (Bs)</label><input class="form-control" id="pagoBonos" type="number" step="0.01" value="0" oninput="calcTotal()"></div>
+            <div class="form-group"><label>Descuentos (Bs)</label><input class="form-control" id="pagoDescuentos" type="number" step="0.01" value="0" oninput="calcTotal()"></div>
+        </div>
+        <div class="form-group"><label>Observaciones</label><textarea class="form-control" id="pagoObs" rows="3"></textarea></div>
+        <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:14px;margin-bottom:16px">
+            <strong>Total a pagar: </strong><span id="pagoTotalPreview" style="color:#34d399;font-size:18px;font-weight:700">Bs 0.00</span>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button class="btn-sm btn-success" style="flex:1;padding:13px" onclick="procesarPago()"><i class="fas fa-check"></i> Confirmar Pago</button>
+            <button class="btn-sm btn-danger" onclick="closeModal('modalPago')" style="padding:13px 18px">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL QR -->
+<div class="modal-overlay" id="modalQR">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-qrcode"></i> Nuevo Punto QR</div>
+            <button class="modal-close" onclick="closeModal('modalQR')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="form-group"><label>Edificio *</label><input class="form-control" id="qrEdificio" required></div>
+        <div class="form-row">
+            <div class="form-group"><label>Piso *</label><input class="form-control" id="qrPiso" required></div>
+            <div class="form-group"><label>Zona *</label><input class="form-control" id="qrZona" required></div>
+        </div>
+        <div class="form-group"><label>Descripción</label><textarea class="form-control" id="qrDescripcion" rows="2"></textarea></div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sm btn-primary" style="flex:1;padding:13px" onclick="guardarQR()"><i class="fas fa-save"></i> Crear y Generar QR</button>
+            <button class="btn-sm btn-danger" onclick="closeModal('modalQR')" style="padding:13px 18px">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL VER QR -->
+<div class="modal-overlay" id="modalVerQR">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-qrcode"></i> Código QR</div>
+            <button class="modal-close" onclick="closeModal('modalVerQR')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="qr-viewer-title" id="qrViewerTitle">—</div>
+        <div class="qr-viewer-sub" id="qrViewerSub">—</div>
+        <div class="qr-canvas-wrap"><div id="qrCanvasWrap" style="display:flex;justify-content:center;align-items:center;min-height:220px"></div></div>
+        <div class="qr-viewer-btns">
+            <button class="btn-sm btn-primary" onclick="descargarQR()"><i class="fas fa-download"></i> Descargar PNG</button>
+            <button class="btn-sm btn-info" onclick="imprimirQR()"><i class="fas fa-print"></i> Imprimir</button>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--text-muted);background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;word-break:break-all" id="qrViewerCodigo"></div>
+    </div>
+</div>
+
+<!-- MODAL RESPONDER PERMISO -->
+<div class="modal-overlay" id="modalPermiso">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-calendar-check"></i> Responder Solicitud</div>
+            <button class="modal-close" onclick="closeModal('modalPermiso')"><i class="fas fa-times"></i></button>
+        </div>
+        <input type="hidden" id="permisoId">
+        <div id="permisoDetalle" style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px"></div>
+        <div class="form-group">
+            <label>Respuesta / Comentario (opcional)</label>
+            <textarea class="form-control" id="permisoRespuesta" rows="3" placeholder="Ej: Aprobado, regresa el lunes..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sm btn-success" style="flex:1;padding:13px" onclick="responderPermiso('aprobado')"><i class="fas fa-check"></i> Aprobar</button>
+            <button class="btn-sm btn-danger" style="flex:1;padding:13px" onclick="responderPermiso('rechazado')"><i class="fas fa-times"></i> Rechazar</button>
+        </div>
+        <button class="btn-sm btn-info" style="width:100%;margin-top:8px;padding:10px" onclick="closeModal('modalPermiso')">Cancelar</button>
+    </div>
+</div>
+
+<!-- MODAL VER QR BANCO GRANDE -->
+<div class="modal-overlay" id="modalQRBancoGrande">
+    <div class="modal-box" style="text-align:center">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-qrcode"></i> QR Bancario</div>
+            <button class="modal-close" onclick="closeModal('modalQRBancoGrande')"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="qrBancoNombre" style="font-size:16px;font-weight:600;margin-bottom:12px"></div>
+        <img id="qrBancoGrandeImg" style="max-width:100%;border-radius:12px;border:2px solid var(--border)">
+        <div style="margin-top:14px">
+            <a id="qrBancoDescLink" download="qr_banco.jpg" class="btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;text-decoration:none">
+                <i class="fas fa-download"></i> Descargar
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="alert-toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// ── INIT ──
+const admin = Auth.requireAdmin();
+if (admin) {
+    document.getElementById('adminName').textContent = admin.nombre + ' ' + admin.apellido;
+    document.getElementById('adminAvatar').textContent = admin.nombre[0].toUpperCase();
+}
+
+// ── RELOJ ──
+setInterval(() => {
+    document.getElementById('clock').textContent =
+        new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}, 1000);
+
+// ── TABS ──
+const tabTitles = {dashboard:'Dashboard',guardias:'Guardias',asistencias:'Asistencias',rondas:'Rondas',novedades:'Novedades',pagos:'Pagos',qrcodes:'Puntos QR',reportes:'Reportes',mapa:'Mapa en Vivo',inactivos:'Papelera de Guardias',log:'Registro de Actividad',financiero:'Resumen Financiero',config:'Configuración',permisos:'Solicitudes de Permiso'};
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    document.getElementById('nav-'+name).classList.add('active');
+    document.getElementById('pageTitle').textContent = tabTitles[name];
+    if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open');
+    if (name==='guardias')    loadGuardias();
+    if (name==='asistencias') { loadGuardiasSelect('filtroAsistGuardia'); loadAsistencias(); }
+    if (name==='rondas')      { loadGuardiasSelect('filtroRondasGuardia'); loadRondas(); }
+    if (name==='qrcodes')     loadQRCodes();
+    if (name==='novedades')   loadNovedades();
+    if (name==='pagos')       loadPagos();
+    if (name==='mapa')        initMapa();
+    if (name==='inactivos')   loadInactivos();
+    if (name==='log')         loadLog();
+    if (name==='financiero')  loadFinanciero();
+    if (name==='config')      initConfig();
+    if (name==='permisos')    loadPermisos();
+}
+function switchSubTab(group, name) {
+    document.querySelectorAll(`#tab-${group} .tab-content`).forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll(`#tab-${group} .tab-btn`).forEach(b=>b.classList.remove('active'));
+    document.getElementById(`subtab-${name}`).classList.add('active');
+    event.target.closest('.tab-btn').classList.add('active');
+}
+
+// ── MODALS ──
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+// ── TOAST ──
+function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.className = `alert-toast ${type}`;
+    t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='error'?'times-circle':'info-circle'}"></i> ${msg}`;
+    t.style.display = 'flex';
+    setTimeout(() => t.style.display='none', 4000);
+}
+
+// ── SELECTS MES/AÑO ──
+function fillMesAnio(mesId, anioId) {
+    const meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const now = new Date();
+    const ms = document.getElementById(mesId);
+    const ay = document.getElementById(anioId);
+    if (!ms || !ay) return;
+    ms.innerHTML = meses.slice(1).map((m,i) => `<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${m}</option>`).join('');
+    for (let y = now.getFullYear(); y >= now.getFullYear()-2; y--) {
+        ay.innerHTML += `<option value="${y}" ${y===now.getFullYear()?'selected':''}>${y}</option>`;
+    }
+}
+['pago','desc','rep'].forEach(p => fillMesAnio(p+'Mes', p+'Anio'));
+fillMesAnio('finMes','finAnio');
+
+// Filtros de fecha por defecto
+const hoy = new Date().toISOString().split('T')[0];
+const ini = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+['asistDesde','rondasDesde'].forEach(id => { const el=document.getElementById(id); if(el) el.value=ini; });
+['asistHasta','rondasHasta'].forEach(id => { const el=document.getElementById(id); if(el) el.value=hoy; });
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+    try {
+        const s = await AdminAPI.dashboard();
+        document.getElementById('s-guardias').textContent  = s.total_guardias    ?? 0;
+        document.getElementById('s-presentes').textContent = s.guardias_presentes ?? 0;
+        document.getElementById('s-asist').textContent     = s.asistencias_hoy    ?? 0;
+        document.getElementById('s-rondas').textContent    = s.rondas_hoy         ?? 0;
+        document.getElementById('s-pagos').textContent     = s.pagos_pendientes   ?? 0;
+        document.getElementById('s-total').textContent     = 'Bs '+(parseFloat(s.total_pagado_mes)||0).toFixed(0);
+    } catch(e) { showToast('Error cargando dashboard: '+e.message,'error'); }
+    loadFaltasHoy();
+    loadProxTurnos();
+    initEntradaManual();
+    fillMesAnio('finMes','finAnio');
+    // Poblar selector de guardias en reporte
+    AdminAPI.listarGuardias().then(gs => {
+        const sel = document.getElementById('repFiltroGuardia');
+        if (sel && gs) gs.forEach(g => {
+            sel.innerHTML += `<option value="${g.cedula}">${g.nombre} ${g.apellido}</option>`;
+        });
+    });
+}
+
+const chartCfg = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',font:{size:11}}},
+            y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#94a3b8',font:{size:11}}}}
+};
+let charts = {};
+function buildChart(id, labels, data, color) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if (!ctx) return;
+    charts[id] = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets:[{ data, backgroundColor:color+'33', borderColor:color, borderWidth:2, borderRadius:6, borderSkipped:false }] },
+        options: chartCfg
+    });
+}
+
+async function loadCharts() {
+    const now = new Date();
+    const [asist, rondas] = await Promise.all([
+        AdminAPI.estadisticasAsistencia(now.getMonth()+1, now.getFullYear()),
+        AdminAPI.estadisticasRondas(now.getMonth()+1, now.getFullYear())
+    ]);
+    buildChart('chartAsistencias', (asist||[]).map(d=>'Día '+d.dia), (asist||[]).map(d=>d.guardias_presentes), '#D4A017');
+    buildChart('chartRondas',      (rondas||[]).map(d=>'Día '+d.dia),(rondas||[]).map(d=>d.total_rondas),       '#3b82f6');
+}
+
+// ── GUARDIAS ──
+async function loadGuardias() {
+    const c = document.getElementById('tablaGuardias');
+    c.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+    const data = await AdminAPI.listarGuardias();
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin guardias registrados</div>'; return; }
+    const diasNom = ['','Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    let html = `<table><thead><tr><th>Guardia</th><th>Cédula</th><th>Turno/Horario</th><th>Salario</th><th>Puesto</th><th>Estado</th><th>Rondas Hoy</th><th>Acciones</th></tr></thead><tbody>`;
+    data.forEach(g => {
+        const horario = g.hora_inicio && g.hora_fin ? g.hora_inicio.substring(0,5)+' – '+g.hora_fin.substring(0,5) : '—';
+        const diasStr = g.dias_trabajo ? g.dias_trabajo.split(',').map(d=>diasNom[d]||d).join(', ') : '—';
+        html += `<tr>
+            <td><div style="display:flex;align-items:center;gap:10px">
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1a3a6b,#2a4a8b);display:flex;align-items:center;justify-content:center;color:#D4A017;font-weight:700">${g.nombre[0].toUpperCase()}</div>
+                <div><div style="font-weight:600">${g.nombre} ${g.apellido}</div><div style="font-size:12px;color:var(--text-muted)">${g.telefono||'—'}</div></div>
+            </div></td>
+            <td>${g.cedula}</td>
+            <td><span class="badge badge-info">${g.turno}</span><div style="font-size:11px;color:var(--text-muted);margin-top:3px">⏰ ${horario}</div><div style="font-size:11px;color:var(--text-muted)">${diasStr}</div></td>
+            <td>Bs ${parseFloat(g.salario_base).toFixed(2)}</td>
+            <td>${g.puesto ? `<span style="font-size:12px;color:var(--primary)"><i class="fas fa-map-marker-alt"></i> ${g.puesto}</span>` : '<span style="color:var(--text-muted);font-size:12px">Sin puesto</span>'}</td>
+            <td><span class="badge ${g.activo==1?'badge-success':'badge-error'}">${g.activo==1?'Activo':'Inactivo'}</span></td>
+            <td>${g.rondas_hoy}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn-sm btn-info" onclick='editarGuardia(${JSON.stringify(g)})' title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-sm btn-success" onclick="verHistorialGuardia(${g.id},'${g.nombre} ${g.apellido}')" title="Historial"><i class="fas fa-history"></i></button>
+                ${g.foto_qr_banco ? `<button class="btn-sm btn-warning" onclick="abrirQRBanco('${g.foto_qr_banco}','${g.nombre} ${g.apellido}')" title="QR Bancario"><i class="fas fa-qrcode"></i></button>` : ''}
+                <button class="btn-sm btn-danger" onclick="eliminarGuardia(${g.id},'${g.nombre}')" title="Desactivar"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    c.innerHTML = html;
+    // Guardar datos para búsqueda
+    window._guardiasTodos = data;
+}
+
+// ── BUSCAR GUARDIA ──
+function filtrarGuardias(q) {
+    if (!window._guardiasTodos) return;
+    const filtro = q.toLowerCase().trim();
+    const data = filtro
+        ? window._guardiasTodos.filter(g =>
+            (g.nombre+' '+g.apellido).toLowerCase().includes(filtro) ||
+            g.cedula.toLowerCase().includes(filtro) ||
+            (g.puesto||'').toLowerCase().includes(filtro))
+        : window._guardiasTodos;
+    const c = document.getElementById('tablaGuardias');
+    if (!data.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin resultados</div>'; return; }
+    const diasNom = ['','Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    let html = `<table><thead><tr><th>Guardia</th><th>Cédula</th><th>Turno/Horario</th><th>Salario</th><th>Puesto</th><th>Estado</th><th>Rondas Hoy</th><th>Acciones</th></tr></thead><tbody>`;
+    data.forEach(g => {
+        const horario = g.hora_inicio && g.hora_fin ? g.hora_inicio.substring(0,5)+' – '+g.hora_fin.substring(0,5) : '—';
+        const diasStr = g.dias_trabajo ? g.dias_trabajo.split(',').map(d=>diasNom[d]||d).join(', ') : '—';
+        html += `<tr>
+            <td><div style="display:flex;align-items:center;gap:10px">
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1a3a6b,#2a4a8b);display:flex;align-items:center;justify-content:center;color:#D4A017;font-weight:700">${g.nombre[0].toUpperCase()}</div>
+                <div><div style="font-weight:600">${g.nombre} ${g.apellido}</div><div style="font-size:12px;color:var(--text-muted)">${g.telefono||'—'}</div></div>
+            </div></td>
+            <td>${g.cedula}</td>
+            <td><span class="badge badge-info">${g.turno}</span><div style="font-size:11px;color:var(--text-muted);margin-top:3px">⏰ ${horario}</div><div style="font-size:11px;color:var(--text-muted)">${diasStr}</div></td>
+            <td>Bs ${parseFloat(g.salario_base).toFixed(2)}</td>
+            <td>${g.puesto ? `<span style="font-size:12px;color:var(--primary)"><i class="fas fa-map-marker-alt"></i> ${g.puesto}</span>` : '<span style="color:var(--text-muted);font-size:12px">Sin puesto</span>'}</td>
+            <td><span class="badge ${g.activo==1?'badge-success':'badge-error'}">${g.activo==1?'Activo':'Inactivo'}</span></td>
+            <td>${g.rondas_hoy}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn-sm btn-info" onclick='editarGuardia(${JSON.stringify(g)})' title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-sm btn-success" onclick="verHistorialGuardia(${g.id},'${g.nombre} ${g.apellido}')" title="Historial"><i class="fas fa-history"></i></button>
+                ${g.foto_qr_banco ? `<button class="btn-sm btn-warning" onclick="abrirQRBanco('${g.foto_qr_banco}','${g.nombre} ${g.apellido}')" title="QR Bancario"><i class="fas fa-qrcode"></i></button>` : ''}
+                <button class="btn-sm btn-danger" onclick="eliminarGuardia(${g.id},'${g.nombre}')" title="Desactivar"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    c.innerHTML = html;
+}
+
+async function loadGuardiasSelect(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const guardias = await AdminAPI.listarGuardias();
+    sel.innerHTML = '<option value="">Todos los guardias</option>';
+    (guardias||[]).forEach(g => { sel.innerHTML += `<option value="${g.id}">${g.nombre} ${g.apellido}</option>`; });
+}
+
+function openModalGuardia() {
+    document.getElementById('guardiaId').value = '';
+    document.getElementById('gNombre').value = document.getElementById('gApellido').value = '';
+    document.getElementById('gCedula').value    = document.getElementById('gPassword').value = '';
+    document.getElementById('gCedula').readOnly = false;
+    document.getElementById('gTelefono').value = document.getElementById('gCorreo').value = '';
+    document.getElementById('gTelegramChatId').value = '';
+    document.getElementById('gPuesto').value      = '';
+    document.getElementById('gPuestoLat').value   = '';
+    document.getElementById('gPuestoLon').value   = '';
+    document.getElementById('gPuestoRadio').value = 200;
+    document.getElementById('geoPreview').style.display = 'none';
+    document.getElementById('gTurno').value = 'mañana';
+    document.getElementById('gSalario').value = '';
+    document.getElementById('gHoraInicio').value = '08:00';
+    document.getElementById('gHoraFin').value = '16:00';
+    document.getElementById('gRondasReq').value = '0';
+    document.getElementById('gTieneRelevo').value = '0';
+    document.getElementById('activoGroup').style.display = 'none';
+    document.getElementById('relepoSelectGroup').style.display = 'none';
+    document.getElementById('modalGuardiaTitle').innerHTML = '<i class="fas fa-user-plus"></i> Nuevo Guardia';
+    document.querySelectorAll('#diasCheckboxes input').forEach(cb => { cb.checked = ['2','3','4','5','6'].includes(cb.value); });
+    cargarGuardiasRelevo(0, 0);
+    actualizarHorarioPreview();
+    openModal('modalGuardia');
+}
+
+function editarGuardia(g) {
+    document.getElementById('guardiaId').value   = g.id;
+    document.getElementById('gNombre').value     = g.nombre;
+    document.getElementById('gApellido').value   = g.apellido;
+    document.getElementById('gCedula').value     = g.cedula;
+    document.getElementById('gCedula').readOnly  = true;
+    document.getElementById('gPassword').value   = '';
+    document.getElementById('gTelefono').value   = g.telefono||'';
+    document.getElementById('gCorreo').value          = g.correo||'';
+    document.getElementById('gTelegramChatId').value = g.telegram_chat_id||'';
+    document.getElementById('gPuesto').value          = g.puesto||'';
+    document.getElementById('gPuestoLat').value   = g.puesto_lat||'';
+    document.getElementById('gPuestoLon').value   = g.puesto_lon||'';
+    document.getElementById('gPuestoRadio').value = g.puesto_radio||200;
+    if (g.puesto_lat && g.puesto_lon) {
+        document.getElementById('geoPreview').style.display = 'block';
+        document.getElementById('geoPreviewText').textContent = `${g.puesto_lat}, ${g.puesto_lon} — Radio: ${g.puesto_radio||200}m`;
+        document.getElementById('geoPreviewLink').href = `https://maps.google.com/?q=${g.puesto_lat},${g.puesto_lon}`;
+    } else {
+        document.getElementById('geoPreview').style.display = 'none';
+    }
+    document.getElementById('gTurno').value      = g.turno;
+    document.getElementById('gSalario').value    = g.salario_base;
+    document.getElementById('gActivo').value     = g.activo;
+    document.getElementById('activoGroup').style.display = 'block';
+    document.getElementById('gHoraInicio').value = (g.hora_inicio||'08:00:00').substring(0,5);
+    document.getElementById('gHoraFin').value    = (g.hora_fin||'16:00:00').substring(0,5);
+    document.getElementById('gRondasReq').value  = g.rondas_requeridas||0;
+    document.getElementById('gTieneRelevo').value = g.tiene_relevo||0;
+    document.getElementById('modalGuardiaTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Guardia';
+    const dias = (g.dias_trabajo||'2,3,4,5,6').split(',');
+    document.querySelectorAll('#diasCheckboxes input').forEach(cb => { cb.checked = dias.includes(cb.value); });
+    toggleRelevo();
+    cargarGuardiasRelevo(g.relevo_id||0, g.id);
+    actualizarHorarioPreview();
+    openModal('modalGuardia');
+}
+
+function toggleRelevo() {
+    const tiene = document.getElementById('gTieneRelevo').value === '1';
+    document.getElementById('relepoSelectGroup').style.display = tiene ? 'block' : 'none';
+}
+
+async function cargarGuardiasRelevo(selectedId=0, excluirId=0) {
+    const data = await AdminAPI.listarGuardias();
+    const sel  = document.getElementById('gRelevaId');
+    sel.innerHTML = '<option value="0">Seleccionar guardia...</option>';
+    (data||[]).forEach(g => {
+        if (g.id == excluirId) return;
+        sel.innerHTML += `<option value="${g.id}" ${g.id==selectedId?'selected':''}>${g.nombre} ${g.apellido} (${g.turno})</option>`;
+    });
+}
+
+function actualizarHorarioPreview() {
+    const inicio = document.getElementById('gHoraInicio').value;
+    const fin    = document.getElementById('gHoraFin').value;
+    const sal    = parseFloat(document.getElementById('gSalario').value)||0;
+    const dias   = Array.from(document.querySelectorAll('#diasCheckboxes input:checked')).map(c=>c.value);
+    const prev   = document.getElementById('horarioPreview');
+    if (!inicio || !fin || !dias.length) { prev.innerHTML='Complete horario y días.'; return; }
+    const [h1,m1] = inicio.split(':').map(Number);
+    const [h2,m2] = fin.split(':').map(Number);
+    let minDia = (h2*60+m2)-(h1*60+m1);
+    if (minDia <= 0) minDia += 1440;
+    const diasMes = dias.length * 4.33;
+    const gxMin  = sal>0 ? (sal/(diasMes*minDia)).toFixed(4) : 0;
+    const diasNom = ['','Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    prev.innerHTML = `📅 <strong>${dias.map(d=>diasNom[d]).join(', ')}</strong> | ⏱ <strong>${minDia}</strong> min/día | ~<strong>${Math.round(diasMes)}</strong> días/mes` +
+        (sal>0 ? ` | 💵 Bs <strong style="color:var(--primary)">${gxMin}</strong>/min` : '');
+}
+document.querySelectorAll('#diasCheckboxes input').forEach(cb => cb.addEventListener('change', actualizarHorarioPreview));
+
+async function guardarGuardia() {
+    const id   = document.getElementById('guardiaId').value;
+    const dias = Array.from(document.querySelectorAll('#diasCheckboxes input:checked')).map(c=>c.value);
+    if (!dias.length) { showToast('Seleccione al menos un día','error'); return; }
+    const datos = {
+        id, nombre: document.getElementById('gNombre').value,
+        apellido: document.getElementById('gApellido').value,
+        cedula: document.getElementById('gCedula').value,
+        password: document.getElementById('gPassword').value,
+        telefono: document.getElementById('gTelefono').value,
+        correo: document.getElementById('gCorreo').value,
+        turno: document.getElementById('gTurno').value,
+        salario: document.getElementById('gSalario').value,
+        activo: document.getElementById('gActivo').value||'1',
+        hora_inicio: document.getElementById('gHoraInicio').value,
+        hora_fin: document.getElementById('gHoraFin').value,
+        dias_trabajo: dias.join(','),
+        tiene_relevo: document.getElementById('gTieneRelevo').value,
+        relevo_id: document.getElementById('gRelevaId').value||'0',
+        rondas_requeridas: document.getElementById('gRondasReq').value||'0',
+        puesto:            document.getElementById('gPuesto').value||'',
+        telegram_chat_id:  document.getElementById('gTelegramChatId').value||null,
+        puesto_lat:        document.getElementById('gPuestoLat').value||null,
+        puesto_lon:        document.getElementById('gPuestoLon').value||null,
+        puesto_radio:      parseInt(document.getElementById('gPuestoRadio').value)||200
+    };
+    try {
+        const r = id ? await AdminAPI.actualizarGuardia(datos) : await AdminAPI.crearGuardia(datos);
+        if (r.success) {
+            registrarLog(id ? 'actualizar_guardia' : 'crear_guardia',
+                id ? `Editó al guardia ${datos.nombre} ${datos.apellido}` : `Creó al guardia ${datos.nombre} ${datos.apellido}`);
+            showToast(r.message||'Guardado exitosamente');
+            closeModal('modalGuardia');
+            loadGuardias();
+        } else showToast(r.message||'Error al guardar','error');
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+async function eliminarGuardia(id, nombre) {
+    if (!confirm(`¿Desactivar a ${nombre}?`)) return;
+    try {
+        await AdminAPI.eliminarGuardia(id);
+        registrarLog('eliminar_guardia', `Desactivó al guardia ${nombre}`);
+        showToast('Guardia desactivado');
+        loadGuardias();
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ── ASISTENCIAS ──
+async function loadAsistencias() {
+    const c = document.getElementById('tablaAsistencias');
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    const data = await AdminAPI.listarAsistencias(
+        document.getElementById('asistDesde').value,
+        document.getElementById('asistHasta').value,
+        document.getElementById('filtroAsistGuardia').value || null
+    );
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin registros</div>'; return; }
+    // Agrupar para calcular etapa del día por guardia
+    const porGuardia = {};
+    data.forEach(a => {
+        const k = a.cedula;
+        if (!porGuardia[k]) porGuardia[k] = [];
+        porGuardia[k].push(a);
+    });
+    let html = `<table><thead><tr><th>Guardia</th><th>Tipo</th><th>Etapa del Día</th><th>Fecha/Hora</th><th>Ubicación</th><th>Método</th><th>Foto</th></tr></thead><tbody>`;
+    data.forEach(a => {
+        const fotoUrl = a.foto_path ? Storage.url(a.foto_path) : null;
+        const regs = porGuardia[a.cedula] || [];
+        const tieneEntrada = regs.some(r => r.tipo==='entrada');
+        const tieneSalida  = regs.some(r => r.tipo==='salida');
+        const etapa = tieneSalida ? 3 : tieneEntrada ? 2 : 1;
+        html += `<tr>
+            <td><strong>${a.nombre} ${a.apellido}</strong><div style="font-size:11px;color:var(--text-muted)">${a.cedula}</div></td>
+            <td><span class="badge ${a.tipo==='entrada'?'badge-success':'badge-error'}">${a.tipo}</span></td>
+            <td>${renderEtapas(etapa, ['Sin entrada','En turno','Salida'])}</td>
+            <td>${formatDate(a.fecha_hora)}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${a.zona?(a.zona+', '):''}${a.ciudad||'—'}</td>
+            <td><span class="badge badge-info">${a.metodo_verificacion||'—'}</span></td>
+            <td>${fotoUrl?`<a href="${fotoUrl}" target="_blank" class="btn-sm btn-info" style="font-size:11px"><i class="fas fa-image"></i></a>`:'—'}</td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+// ── RONDAS ──
+async function loadRondas() {
+    const c = document.getElementById('tablaRondas');
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    const data = await AdminAPI.listarRondas(
+        document.getElementById('rondasDesde').value,
+        document.getElementById('rondasHasta').value,
+        document.getElementById('filtroRondasGuardia').value || null
+    );
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin registros</div>'; return; }
+    // Agrupar rondas por guardia para calcular etapa
+    const rondasPorGuardia = {};
+    data.forEach(r => {
+        const k = r.cedula || r.nombre;
+        if (!rondasPorGuardia[k]) rondasPorGuardia[k] = 0;
+        rondasPorGuardia[k]++;
+    });
+    let html = `<table><thead><tr><th>Guardia</th><th>Edificio</th><th>Etapa Rondas</th><th>Piso/Zona</th><th>Fecha/Hora</th><th>Método</th><th>GPS</th><th>Estado</th><th></th></tr></thead><tbody>`;
+    const rondasIdx = {};
+    data.forEach(r => {
+        const k = r.cedula || r.nombre;
+        if (!rondasIdx[k]) rondasIdx[k] = 0;
+        rondasIdx[k]++;
+        const totalHoy = rondasPorGuardia[k];
+        const actual   = rondasIdx[k];
+        // Etapas: 1=inicio, medio, fin según total
+        let etapa;
+        if (actual === 1) etapa = 1;
+        else if (actual >= totalHoy) etapa = 3;
+        else etapa = 2;
+        const labels = totalHoy === 1
+            ? ['Ronda']
+            : totalHoy === 2
+                ? ['1ª Ronda', '2ª Ronda']
+                : [`1/${totalHoy}`, `${actual}/${totalHoy}`, `${totalHoy}/${totalHoy}`];
+        html += `<tr>
+            <td><strong>${r.nombre} ${r.apellido}</strong></td>
+            <td>${r.edificio}</td>
+            <td>${totalHoy > 1 ? renderEtapas(etapa, labels) : `<span class="badge badge-info">Única</span>`}</td>
+            <td>${r.piso||''}${r.zona?' — '+r.zona:''}</td>
+            <td>${formatDate(r.fecha_hora)}</td>
+            <td><span class="badge badge-info">${r.metodo_escaneo}</span></td>
+            <td>${r.latitud?`<a href="https://maps.google.com/?q=${r.latitud},${r.longitud}" target="_blank" class="btn-sm btn-info" style="font-size:11px"><i class="fas fa-map-marker-alt"></i></a>`:'—'}</td>
+            <td><span class="badge ${r.subsanada?'badge-success':'badge-muted'}">${r.subsanada?'Subsanada':'Normal'}</span></td>
+            <td>${!r.subsanada?`<button class="btn-sm btn-warning" onclick="subsanarRonda(${r.id})" style="font-size:11px"><i class="fas fa-check"></i></button>`:''}</td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+async function subsanarRonda(id) {
+    if (!confirm('¿Subsanar esta ronda?')) return;
+    try { await AdminAPI.subsanarRonda(id); showToast('Ronda subsanada'); loadRondas(); }
+    catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ── PAGOS ──
+async function loadPagos() {
+    const c = document.getElementById('tablaPagos');
+    c.innerHTML = '<div style="padding:30px;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>';
+    const mes  = parseInt(document.getElementById('pagoMes').value);
+    const anio = parseInt(document.getElementById('pagoAnio').value);
+    let data;
+    try {
+        data = await AdminAPI.listarPagos(mes, anio);
+    } catch(e) {
+        c.innerHTML = `<div style="padding:30px;text-align:center;color:#f87171"><i class="fas fa-exclamation-circle"></i> Error: ${e.message}</div>`;
+        return;
+    }
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin pagos generados para este período. Usa "Generar Pagos" primero.</div>'; return; }
+    let html = `<table><thead><tr><th>Guardia</th><th>Salario Base</th><th>Bonos</th><th>Descuentos</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead><tbody>`;
+    data.forEach(p => {
+        html += `<tr>
+            <td><strong>${p.nombre} ${p.apellido}</strong><div style="font-size:11px;color:var(--text-muted)">${p.cedula}</div></td>
+            <td>Bs ${parseFloat(p.salario_base).toFixed(2)}</td>
+            <td style="color:#34d399">+Bs ${parseFloat(p.bonos||0).toFixed(2)}</td>
+            <td style="color:#f87171">-Bs ${parseFloat(p.descuentos||0).toFixed(2)}</td>
+            <td style="font-weight:700;color:var(--primary)">Bs ${parseFloat(p.total||0).toFixed(2)}</td>
+            <td><span class="badge ${p.estado==='pagado'?'badge-success':'badge-warning'}">${p.estado}</span></td>
+            <td>${p.estado!=='pagado'?`<button class="btn-sm btn-success" onclick="abrirModalPago(${JSON.stringify(p).replace(/"/g,'&quot;')})"><i class="fas fa-check"></i> Pagar</button>`:`<span style="font-size:12px;color:var(--text-muted)">${formatDate(p.fecha_pago)}</span>`}</td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+async function generarPagos() {
+    if (!confirm('¿Generar/actualizar pagos para este mes?')) return;
+    const mes  = parseInt(document.getElementById('pagoMes').value);
+    const anio = parseInt(document.getElementById('pagoAnio').value);
+    try { await AdminAPI.generarPagos(mes, anio); showToast('Pagos generados'); loadPagos(); }
+    catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+let _pagoActual = null;
+function abrirModalPago(p) {
+    _pagoActual = p;
+    document.getElementById('pagoId').value = p.id;
+    document.getElementById('pagoBonos').value = p.bonos||0;
+    document.getElementById('pagoDescuentos').value = p.descuentos||0;
+    document.getElementById('pagoObs').value = p.observaciones||'';
+    document.getElementById('pagoInfoGuardia').innerHTML = `<strong>${p.nombre} ${p.apellido}</strong> — Bs ${parseFloat(p.salario_base).toFixed(2)} base`;
+    calcTotal();
+    openModal('modalPago');
+}
+
+function calcTotal() {
+    if (!_pagoActual) return;
+    const base = parseFloat(_pagoActual.salario_base)||0;
+    const bon  = parseFloat(document.getElementById('pagoBonos').value)||0;
+    const desc = parseFloat(document.getElementById('pagoDescuentos').value)||0;
+    document.getElementById('pagoTotalPreview').textContent = 'Bs '+(base+bon-desc).toFixed(2);
+}
+
+async function procesarPago() {
+    try {
+        const r = await AdminAPI.marcarPago(
+            document.getElementById('pagoId').value,
+            document.getElementById('pagoBonos').value,
+            document.getElementById('pagoDescuentos').value,
+            document.getElementById('pagoObs').value,
+            admin.id
+        );
+        registrarLog('marcar_pago', `Procesó pago`);
+        showToast('Pago procesado y notificación enviada');
+        closeModal('modalPago');
+        loadPagos();
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ── DESCUENTOS ──
+async function loadDescuentos() {
+    const c = document.getElementById('tablaDescuentos');
+    c.innerHTML = '<div style="padding:30px;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>';
+    const mes  = parseInt(document.getElementById('descMes').value);
+    const anio = parseInt(document.getElementById('descAnio').value);
+    let data;
+    try {
+        data = await AdminAPI.resumenDescuentos(mes, anio);
+    } catch(e) {
+        c.innerHTML = `<div style="padding:30px;text-align:center;color:#f87171"><i class="fas fa-exclamation-circle"></i> Error: ${e.message}</div>`;
+        return;
+    }
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin descuentos para este período</div>'; return; }
+    let html = `<table><thead><tr><th>Guardia</th><th>Atrasos</th><th>Faltas</th><th>Rondas Perd.</th><th>Total Desc.</th><th>Bono Relevo</th><th>Detalle</th></tr></thead><tbody>`;
+    data.forEach(d => {
+        html += `<tr>
+            <td><strong>${d.nombre} ${d.apellido}</strong></td>
+            <td style="color:#fbbf24">Bs ${parseFloat(d.desc_atrasos||0).toFixed(2)}</td>
+            <td style="color:#f87171">Bs ${parseFloat(d.desc_faltas||0).toFixed(2)}</td>
+            <td style="color:#f87171">Bs ${parseFloat(d.desc_rondas||0).toFixed(2)}</td>
+            <td style="font-weight:700;color:#f87171">Bs ${parseFloat(d.total_descuentos||0).toFixed(2)}</td>
+            <td style="color:#34d399">+Bs ${parseFloat(d.bono_relevo||0).toFixed(2)}</td>
+            <td><button class="btn-sm btn-info" style="font-size:11px" onclick="verDetalleDescuentos(${d.id},${mes},${anio},'${d.nombre} ${d.apellido}')"><i class="fas fa-list"></i></button></td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+async function verDetalleDescuentos(uid, mes, anio, nombre) {
+    const data = await AdminAPI.detalleDescuentos(uid, mes, anio);
+    if (!data || !data.length) { showToast('Sin descuentos detallados','info'); return; }
+    let html = `<h3 style="margin-bottom:12px">${nombre}</h3><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Minutos</th><th>Monto</th><th>Descripción</th></tr></thead><tbody>`;
+    data.forEach(d => {
+        html += `<tr><td>${d.fecha}</td><td><span class="badge ${d.tipo==='falta'?'badge-error':d.tipo==='atraso'?'badge-warning':d.tipo==='relevo'?'badge-success':'badge-muted'}">${d.tipo}</span></td><td>${d.minutos}</td><td>Bs ${parseFloat(d.monto||0).toFixed(2)}</td><td style="font-size:12px;color:var(--text-muted)">${d.descripcion}</td></tr>`;
+    });
+    document.querySelector('#modalQR .modal-box').innerHTML = `<div class="modal-header"><div class="modal-title"><i class="fas fa-list"></i> Detalle Descuentos</div><button class="modal-close" onclick="closeModal('modalQR')"><i class="fas fa-times"></i></button></div><div class="table-responsive">${html}</tbody></table></div>`;
+    openModal('modalQR');
+}
+
+// ── QR ──
+async function loadQRCodes() {
+    const c = document.getElementById('tablaQR');
+    const data = await AdminAPI.listarQR();
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin puntos QR</div>'; return; }
+    let html = `<table><thead><tr><th>Edificio</th><th>Piso</th><th>Zona</th><th>Descripción</th><th>Acciones</th></tr></thead><tbody>`;
+    data.forEach(q => {
+        html += `<tr>
+            <td><strong>${q.edificio}</strong></td>
+            <td>${q.piso||'—'}</td>
+            <td>${q.zona||'—'}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${q.descripcion||'—'}</td>
+            <td><button class="btn-sm btn-primary" onclick='verQR(${JSON.stringify(q)})'><i class="fas fa-qrcode"></i> Ver QR</button></td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+async function guardarQR() {
+    const edificio = document.getElementById('qrEdificio').value.trim();
+    const piso     = document.getElementById('qrPiso').value.trim();
+    const zona     = document.getElementById('qrZona').value.trim();
+    const desc     = document.getElementById('qrDescripcion').value.trim();
+    if (!edificio || !piso || !zona) { showToast('Complete los campos obligatorios','error'); return; }
+    const ts   = Date.now().toString().slice(-6);
+    const codigo = JSON.stringify({ id: 'QR'+ts, building: edificio, floor: piso, zone: zona });
+    try {
+        await AdminAPI.crearQR(codigo, edificio, piso, zona, desc);
+        showToast('Punto QR creado');
+        closeModal('modalQR');
+        loadQRCodes();
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+let _qrViewerData = null;
+function verQR(d) {
+    _qrViewerData = d;
+    document.getElementById('qrViewerTitle').textContent  = d.edificio;
+    document.getElementById('qrViewerSub').textContent    = [d.piso, d.zona].filter(Boolean).join(' \u2014 ');
+    document.getElementById('qrViewerCodigo').textContent = d.qr_codigo;
+    // Limpiar y generar QR en el div del modal (debe estar en el DOM)
+    const wrap = document.getElementById('qrCanvasWrap');
+    wrap.innerHTML = '';
+    new QRCode(wrap, {
+        text: d.qr_codigo,
+        width: 220, height: 220,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+    });
+    openModal('modalVerQR');
+}
+
+function descargarQR() {
+    const wrap = document.getElementById('qrCanvasWrap');
+    const el = wrap.querySelector('canvas') || wrap.querySelector('img');
+    if (!el) return;
+    const a = document.createElement('a');
+    a.download = `qr_esefip_${(_qrViewerData?.edificio||'qr').replace(/\s/g,'_').toLowerCase()}.png`;
+    a.href = el.tagName === 'CANVAS' ? el.toDataURL('image/png') : el.src;
+    a.click();
+}
+function imprimirQR() {
+    const d = _qrViewerData;
+    const wrap = document.getElementById('qrCanvasWrap');
+    const el = wrap.querySelector('canvas') || wrap.querySelector('img');
+    const imgSrc = el ? (el.tagName === 'CANVAS' ? el.toDataURL('image/png') : el.src) : '';
+    const w = window.open('','_blank','width=450,height=550');
+    w.document.write(`<!DOCTYPE html><html><head><title>QR ESEFIP</title>
+    <style>body{font-family:Arial,sans-serif;padding:30px;text-align:center;background:#fff;color:#000}h2{margin-bottom:4px;font-size:18px}p{color:#555;font-size:13px;margin-bottom:16px}img{max-width:300px;width:100%}@media print{button{display:none}}button{margin-top:16px;padding:10px 24px;background:#D4A017;border:none;border-radius:8px;cursor:pointer;font-weight:700}</style>
+    </head><body><h2>${d.edificio}</h2><p>${[d.piso,d.zona].filter(Boolean).join(' — ')}</p>
+    <img src="${imgSrc}"><br><button onclick="window.print()">🖨️ Imprimir</button></body></html>`);
+    w.document.close();
+}
+
+// ── NOVEDADES ──
+async function loadNovedades() {
+    const c = document.getElementById('tablaNovedades');
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    const data = await AdminAPI.listarNovedades();
+    if (!data || !data.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin novedades</div>'; document.getElementById('novBadge').style.display='none'; return; }
+    const pendientes = data.filter(n=>!n.vista).length;
+    const badge = document.getElementById('novBadge');
+    badge.style.display = pendientes > 0 ? 'inline' : 'none';
+    badge.textContent   = pendientes;
+    let html = `<table><thead><tr><th>Guardia</th><th>Fecha</th><th>Ubicación</th><th>Descripción</th><th>Adjuntos</th><th>Acción</th></tr></thead><tbody>`;
+    data.forEach(n => {
+        const fotoBtn  = n.foto_path  ? `<a href="${Storage.url(n.foto_path)}"  target="_blank" class="btn-sm btn-info" style="font-size:11px"><i class="fas fa-image"></i></a>` : '';
+        const audioBtn = n.audio_path ? `<audio src="${Storage.url(n.audio_path)}" controls style="height:28px;width:120px"></audio>` : '';
+        const gpsBtn   = n.lat && n.lon ? `<a href="https://maps.google.com/?q=${n.lat},${n.lon}" target="_blank" class="btn-sm btn-info" style="font-size:11px"><i class="fas fa-map-marker-alt"></i></a>` : '';
+        html += `<tr style="${!n.vista?'background:rgba(239,68,68,0.05);':''}">
+            <td>${!n.vista?'<span class="badge badge-error" style="font-size:10px;margin-right:4px">NUEVA</span>':''}<strong>${n.nombre} ${n.apellido}</strong><div style="font-size:11px;color:var(--text-muted)">${n.cedula}</div></td>
+            <td>${formatDate(n.creado_en)}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${n.zona?(n.zona+(n.ciudad?', '+n.ciudad:'')):'—'}</td>
+            <td style="max-width:200px;font-size:13px">${n.descripcion?n.descripcion.substring(0,100)+(n.descripcion.length>100?'…':''):'<em style="color:var(--text-muted)">Sin descripción</em>'}</td>
+            <td style="display:flex;gap:4px;flex-wrap:wrap">${fotoBtn}${audioBtn}${gpsBtn}</td>
+            <td>${!n.vista?`<button class="btn-sm btn-success" style="font-size:11px" onclick="marcarVista(${n.id})"><i class="fas fa-eye"></i> Vista</button>`:'<span style="font-size:12px;color:var(--text-muted)">Vista</span>'}</td>
+        </tr>`;
+    });
+    c.innerHTML = html + '</tbody></table>';
+}
+
+async function marcarVista(id) {
+    await AdminAPI.marcarNovedadVista(id);
+    registrarLog('marcar_novedad', `Marcó novedad #${id} como vista`);
+    showToast('Marcada como vista');
+    loadNovedades();
+}
+
+// ── REPORTES ──
+let reporteData = [];
+async function loadReporte() {
+    const mes     = parseInt(document.getElementById('repMes').value);
+    const anio    = parseInt(document.getElementById('repAnio').value);
+    const filtroG = document.getElementById('repFiltroGuardia')?.value || '';
+    const c       = document.getElementById('tablaReporte');
+    c.innerHTML   = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    try {
+        let [general, descuentos] = await Promise.all([
+            AdminAPI.reporteGeneral(mes, anio),
+            AdminAPI.resumenDescuentos(mes, anio)
+        ]);
+        if (!general || !general.length) {
+            c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">Sin datos para este período</div>';
+            return;
+        }
+        if (filtroG) {
+            general    = general.filter(d => d.cedula === filtroG);
+            descuentos = (descuentos||[]).filter(d => d.cedula === filtroG);
+        }
+        const descMap = {};
+        (descuentos||[]).forEach(d => { descMap[d.cedula] = d; });
+        reporteData = general.map(d => ({
+            ...d,
+            desc_atrasos:    descMap[d.cedula]?.desc_atrasos    || 0,
+            desc_faltas:     descMap[d.cedula]?.desc_faltas     || 0,
+            desc_rondas:     descMap[d.cedula]?.desc_rondas     || 0,
+            bono_relevo:     descMap[d.cedula]?.bono_relevo     || 0,
+            min_atrasos:     descMap[d.cedula]?.min_atrasos     || 0,
+            dias_falta:      descMap[d.cedula]?.dias_falta      || 0,
+            rondas_perdidas: descMap[d.cedula]?.rondas_perdidas || 0
+        }));
+        let html = `<table><thead><tr>
+            <th>Guardia</th><th>Turno</th><th>Días</th><th>Rondas</th>
+            <th>Atrasos</th><th>Faltas</th><th>Rondas Perd.</th>
+            <th>Desc. Total</th><th>Bono</th><th>Pago</th><th>Estado</th>
+        </tr></thead><tbody>`;
+        reporteData.forEach(d => {
+            const totDesc = parseFloat(d.desc_atrasos||0)+parseFloat(d.desc_faltas||0)+parseFloat(d.desc_rondas||0);
+            html += `<tr>
+                <td><strong>${d.nombre} ${d.apellido}</strong><div style="font-size:11px;color:var(--text-muted)">${d.cedula}</div></td>
+                <td><span class="badge badge-info">${d.turno}</span></td>
+                <td>${d.dias_asistidos}</td>
+                <td>${d.total_rondas}</td>
+                <td style="color:#fbbf24;font-size:12px">${d.min_atrasos}min<br>-Bs ${parseFloat(d.desc_atrasos||0).toFixed(2)}</td>
+                <td style="color:#f87171;font-size:12px">${d.dias_falta}d<br>-Bs ${parseFloat(d.desc_faltas||0).toFixed(2)}</td>
+                <td style="color:#f87171;font-size:12px">${Math.round(d.rondas_perdidas||0)}r<br>-Bs ${parseFloat(d.desc_rondas||0).toFixed(2)}</td>
+                <td style="color:#f87171;font-weight:700">-Bs ${totDesc.toFixed(2)}</td>
+                <td style="color:#34d399">+Bs ${parseFloat(d.bono_relevo||0).toFixed(2)}</td>
+                <td style="color:var(--primary);font-weight:700">Bs ${parseFloat(d.pago_total||0).toFixed(2)}</td>
+                <td><span class="badge ${d.estado_pago==='pagado'?'badge-success':d.estado_pago==='pendiente'?'badge-warning':'badge-muted'}">${d.estado_pago}</span></td>
+            </tr>`;
+        });
+        c.innerHTML = html + '</tbody></table>';
+        cargarGrafPuntualidad(mes, anio);
+    } catch(e) {
+        c.innerHTML = `<div style="padding:20px;text-align:center;color:#f87171">Error: ${e.message}</div>`;
+    }
+}
+
+function exportarReporte() {
+    if (!reporteData.length) { showToast('Genere el reporte primero','error'); return; }
+    const headers = ['Nombre','Apellido','Cedula','Turno','Dias_Asistidos','Rondas','Min_Atrasos','Dias_Falta','Rondas_Perd','Desc_Atrasos','Desc_Faltas','Desc_Rondas','Bono','Pago_Total','Estado'];
+    const rows = reporteData.map(d => [d.nombre,d.apellido,d.cedula,d.turno,d.dias_asistidos,d.total_rondas,d.min_atrasos||0,d.dias_falta||0,Math.round(d.rondas_perdidas||0),parseFloat(d.desc_atrasos||0).toFixed(2),parseFloat(d.desc_faltas||0).toFixed(2),parseFloat(d.desc_rondas||0).toFixed(2),parseFloat(d.bono_relevo||0).toFixed(2),d.pago_total,d.estado_pago].join(','));
+    const csv  = [headers.join(','), ...rows].join('\n');
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+    a.download = `reporte_esefip_${document.getElementById('repMes').value}_${document.getElementById('repAnio').value}.csv`;
+    a.click();
+}
+
+// ── GEOFENCING HELPERS ──
+function mostrarAyudaTelegram() {
+    alert('Para obtener el Chat ID de un guardia:\n\n' +
+        '1. El guardia abre Telegram\n' +
+        '2. Busca y escribe a: @userinfobot\n' +
+        '3. El bot responde con su ID (número)\n' +
+        '4. Ese número es el Chat ID\n\n' +
+        'También: el guardia puede escribirle al bot ESEFIP primero,\n' +
+        'luego busca su ID en: https://api.telegram.org/bot[TOKEN]/getUpdates');
+}
+
+function capturarUbicacionPuesto() {
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo...';
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude.toFixed(7);
+        const lon = pos.coords.longitude.toFixed(7);
+        document.getElementById('gPuestoLat').value = lat;
+        document.getElementById('gPuestoLon').value = lon;
+        document.getElementById('geoPreview').style.display = 'block';
+        document.getElementById('geoPreviewText').textContent = `${lat}, ${lon} — Radio: ${document.getElementById('gPuestoRadio').value}m`;
+        document.getElementById('geoPreviewLink').href = `https://maps.google.com/?q=${lat},${lon}`;
+        btn.innerHTML = '<i class="fas fa-check"></i> Capturado';
+        btn.disabled = false;
+        showToast('Ubicación del puesto capturada');
+    }, err => {
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> Usar mi ubicación';
+        btn.disabled = false;
+        showToast('No se pudo obtener ubicación: ' + err.message, 'error');
+    }, { enableHighAccuracy: true, timeout: 15000 });
+}
+
+document.getElementById('gPuestoRadio').addEventListener('input', function() {
+    const t = document.getElementById('geoPreviewText');
+    if (t && document.getElementById('geoPreview').style.display !== 'none') {
+        const lat = document.getElementById('gPuestoLat').value;
+        const lon = document.getElementById('gPuestoLon').value;
+        t.textContent = `${lat}, ${lon} — Radio: ${this.value}m`;
+    }
+});
+
+// ══════════════════════════════════════════════
+// MAPA EN VIVO — Leaflet + OpenStreetMap
+// ══════════════════════════════════════════════
+let mapaInstance = null;
+let mapaMarkers  = [];
+
+function initMapa() {
+    const overlay = document.getElementById('mapaOverlay');
+    overlay.style.display = 'flex';
+
+    // Cargar Leaflet si no está cargado
+    if (!window.L) {
+        const css  = document.createElement('link');
+        css.rel    = 'stylesheet';
+        css.href   = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+        document.head.appendChild(css);
+        const script = document.createElement('script');
+        script.src   = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+        script.onload = () => cargarDatosMapa();
+        document.head.appendChild(script);
+    } else {
+        cargarDatosMapa();
+    }
+}
+
+async function cargarDatosMapa() {
+    const overlay = document.getElementById('mapaOverlay');
+    try {
+        const guardias = await AdminAPI.listarGuardias();
+        if (!guardias || !guardias.length) {
+            overlay.innerHTML = '<div style="text-align:center;color:var(--text-muted)">Sin guardias registrados</div>';
+            return;
+        }
+
+        // Inicializar mapa centrado en Bolivia
+        if (!mapaInstance) {
+            mapaInstance = L.map('mapaLeaflet').setView([-16.5, -68.15], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(mapaInstance);
+        } else {
+            mapaMarkers.forEach(m => mapaInstance.removeLayer(m));
+            mapaMarkers = [];
+        }
+
+        let presentes = 0, conGeo = 0;
+        const bounds = [];
+
+        for (const g of guardias) {
+            const presente = parseInt(g.presente_hoy) > 0;
+            if (presente) presentes++;
+
+            // Marcador del puesto asignado (estrella dorada)
+            if (g.puesto_lat && g.puesto_lon) {
+                conGeo++;
+                const puestoIcon = L.divIcon({
+                    html: `<div style="background:#D4A017;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>`,
+                    className: '', iconSize: [14,14], iconAnchor: [7,7]
+                });
+                const pm = L.marker([g.puesto_lat, g.puesto_lon], { icon: puestoIcon })
+                    .bindPopup(`<b>📍 Puesto: ${g.puesto||'Sin nombre'}</b><br>Radio: ${g.puesto_radio||200}m`)
+                    .addTo(mapaInstance);
+                mapaMarkers.push(pm);
+                bounds.push([g.puesto_lat, g.puesto_lon]);
+
+                // Círculo del radio
+                const circle = L.circle([g.puesto_lat, g.puesto_lon], {
+                    radius: g.puesto_radio || 200,
+                    color: '#D4A017', fillColor: '#D4A017', fillOpacity: 0.08, weight: 1.5
+                }).addTo(mapaInstance);
+                mapaMarkers.push(circle);
+            }
+
+            // Obtener última ubicación GPS del guardia (última asistencia con GPS)
+            try {
+                const asist = await sbFetch(`/rest/v1/asistencias?usuario_id=eq.${g.id}&latitud=not.is.null&order=fecha_hora.desc&limit=1`);
+                if (asist && asist[0] && asist[0].latitud) {
+                    const lat = parseFloat(asist[0].latitud);
+                    const lon = parseFloat(asist[0].longitud);
+                    const color = presente ? '#10b981' : '#ef4444';
+                    const guardiaIcon = L.divIcon({
+                        html: `<div style="background:${color};width:36px;height:36px;border-radius:50%;border:3px solid #fff;
+                            display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;
+                            box-shadow:0 3px 10px rgba(0,0,0,0.4)">${g.nombre[0].toUpperCase()}</div>`,
+                        className: '', iconSize: [36,36], iconAnchor: [18,18]
+                    });
+                    const gm = L.marker([lat, lon], { icon: guardiaIcon })
+                        .bindPopup(`
+                            <b>${g.nombre} ${g.apellido}</b><br>
+                            CI: ${g.cedula}<br>
+                            ${g.puesto ? '🏢 '+g.puesto+'<br>' : ''}
+                            <span style="color:${color}">${presente ? '✅ Presente hoy' : '❌ Sin entrada hoy'}</span><br>
+                            <small>Última pos: ${formatDate(asist[0].fecha_hora)}</small>
+                        `)
+                        .addTo(mapaInstance);
+                    mapaMarkers.push(gm);
+                    bounds.push([lat, lon]);
+                }
+            } catch(e) {}
+        }
+
+        if (bounds.length > 1) mapaInstance.fitBounds(bounds, { padding: [40, 40] });
+        else if (bounds.length === 1) mapaInstance.setView(bounds[0], 15);
+
+        document.getElementById('mapaContador').textContent =
+            `${presentes} presentes · ${guardias.length} total · ${conGeo} con geo`;
+        overlay.style.display = 'none';
+
+    } catch(e) {
+        overlay.innerHTML = `<div style="text-align:center;color:#f87171"><i class="fas fa-exclamation-circle"></i> Error: ${e.message}</div>`;
+    }
+}
+
+// ══════════════════════════════════════════════
+// EXPORTAR PDF
+// ══════════════════════════════════════════════
+async function exportarPDF() {
+    if (!reporteData.length) { showToast('Genere el reporte primero', 'error'); return; }
+
+    const mes  = parseInt(document.getElementById('repMes').value);
+    const anio = parseInt(document.getElementById('repAnio').value);
+    const mesNombre = nombreMes(mes);
+
+    // Construir HTML del PDF
+    const filas = reporteData.map(d => `
+        <tr>
+            <td>${d.nombre} ${d.apellido}</td>
+            <td>${d.cedula}</td>
+            <td>${d.turno}</td>
+            <td>${d.dias_asistidos}</td>
+            <td>${d.total_rondas}</td>
+            <td>Bs ${parseFloat(d.pago_total||0).toFixed(2)}</td>
+            <td style="color:${d.estado_pago==='pagado'?'#16a34a':'#d97706'};font-weight:600">${d.estado_pago}</td>
+        </tr>`).join('');
+
+    const totalPagado = reporteData.reduce((s,d) => s + parseFloat(d.pago_total||0), 0);
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Planilla ESEFIP — ${mesNombre} ${anio}</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Arial, sans-serif; padding: 32px; color: #111; font-size: 13px; }
+    .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; border-bottom:3px solid #D4A017; padding-bottom:16px; }
+    .logo { font-size:28px; font-weight:900; color:#0a1628; letter-spacing:2px; }
+    .logo span { color:#D4A017; }
+    .subtitle { font-size:12px; color:#666; margin-top:4px; }
+    h2 { font-size:16px; margin-bottom:16px; color:#0a1628; }
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th { background:#0a1628; color:#D4A017; padding:10px 12px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+    td { padding:9px 12px; border-bottom:1px solid #e5e7eb; }
+    tr:nth-child(even) td { background:#f9fafb; }
+    .total-row td { font-weight:700; background:#fef9e7; border-top:2px solid #D4A017; }
+    .footer { margin-top:24px; font-size:11px; color:#999; display:flex; justify-content:space-between; }
+    @media print { button { display:none } }
+</style>
+</head><body>
+<div class="header">
+    <div>
+        <div class="logo">ESE<span>FIP</span></div>
+        <div class="subtitle">Empresa de Seguridad Física Privada</div>
+    </div>
+    <div style="text-align:right">
+        <div style="font-size:16px;font-weight:700">Planilla de Pagos</div>
+        <div style="color:#666">${mesNombre} ${anio}</div>
+        <div style="font-size:11px;color:#999">Generado: ${new Date().toLocaleDateString('es-ES')}</div>
+    </div>
+</div>
+
+<table>
+    <thead><tr>
+        <th>Guardia</th><th>Cédula</th><th>Turno</th>
+        <th>Días Asist.</th><th>Rondas</th><th>Total</th><th>Estado</th>
+    </tr></thead>
+    <tbody>
+        ${filas}
+        <tr class="total-row">
+            <td colspan="5" style="text-align:right">TOTAL PLANILLA:</td>
+            <td>Bs ${totalPagado.toFixed(2)}</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="footer">
+    <span>ESEFIP — Sistema de Seguridad</span>
+    <span>${reporteData.length} guardias · ${mesNombre} ${anio}</span>
+</div>
+
+<script>window.onload = () => window.print();<\/script>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+    showToast('PDF listo para imprimir / guardar');
+}
+
+// ══════════════════════════════════════════
+// HISTORIAL DE GUARDIA
+// ══════════════════════════════════════════
+let _histGuardiaId = null;
+let _histTabActual = 'asist';
+
+async function verHistorialGuardia(id, nombre) {
+    _histGuardiaId = id;
+    _histTabActual = 'asist';
+    document.getElementById('histGuardiaTitle').innerHTML = `<i class="fas fa-user"></i> ${nombre}`;
+    document.querySelectorAll('.hist-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+    openModal('modalHistGuardia');
+    await cargarHistTab('asist');
+}
+
+function switchHistTab(tab, btn) {
+    _histTabActual = tab;
+    document.querySelectorAll('.hist-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    cargarHistTab(tab);
+}
+
+async function cargarHistTab(tab) {
+    const c = document.getElementById('histContent');
+    c.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    const now = new Date();
+    const mes = now.getMonth()+1, anio = now.getFullYear();
+    try {
+        if (tab === 'asist') {
+            const data = await AdminAPI.listarAsistencias(
+                `${anio}-01-01`, `${anio}-12-31`, _histGuardiaId
+            );
+            if (!data || !data.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin asistencias registradas</div>'; return; }
+            c.innerHTML = `<table><thead><tr><th>Tipo</th><th>Fecha/Hora</th><th>Ubicación</th><th>Método</th></tr></thead><tbody>` +
+                data.slice(0,50).map(a => `<tr>
+                    <td><span class="badge ${a.tipo==='entrada'?'badge-success':'badge-error'}">${a.tipo}</span></td>
+                    <td>${formatDate(a.fecha_hora)}</td>
+                    <td style="font-size:12px;color:var(--text-muted)">${a.zona||a.ciudad||'—'}</td>
+                    <td><span class="badge badge-info">${a.metodo_verificacion||'—'}</span></td>
+                </tr>`).join('') + '</tbody></table>';
+        } else if (tab === 'rondas') {
+            const data = await AdminAPI.listarRondas(`${anio}-01-01`, `${anio}-12-31`, _histGuardiaId);
+            if (!data || !data.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin rondas registradas</div>'; return; }
+            c.innerHTML = `<table><thead><tr><th>Edificio</th><th>Zona</th><th>Fecha/Hora</th><th>Método</th></tr></thead><tbody>` +
+                data.slice(0,50).map(r => `<tr>
+                    <td>${r.edificio}</td>
+                    <td>${r.zona||r.piso||'—'}</td>
+                    <td>${formatDate(r.fecha_hora)}</td>
+                    <td><span class="badge badge-info">${r.metodo_escaneo}</span></td>
+                </tr>`).join('') + '</tbody></table>';
+        } else if (tab === 'pagos') {
+            const data = await query('pagos', `usuario_id=eq.${_histGuardiaId}&order=anio.desc,mes.desc&select=*`);
+            if (!data || !data.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin pagos registrados</div>'; return; }
+            c.innerHTML = `<table><thead><tr><th>Período</th><th>Base</th><th>Descuentos</th><th>Bonos</th><th>Total</th><th>Estado</th></tr></thead><tbody>` +
+                data.map(p => `<tr>
+                    <td>${nombreMes(p.mes)} ${p.anio}</td>
+                    <td>Bs ${parseFloat(p.salario_base).toFixed(2)}</td>
+                    <td style="color:#f87171">-Bs ${parseFloat(p.descuentos||0).toFixed(2)}</td>
+                    <td style="color:#34d399">+Bs ${parseFloat(p.bonos||0).toFixed(2)}</td>
+                    <td style="font-weight:700;color:var(--primary)">Bs ${parseFloat(p.total||0).toFixed(2)}</td>
+                    <td><span class="badge ${p.estado==='pagado'?'badge-success':'badge-warning'}">${p.estado}</span></td>
+                </tr>`).join('') + '</tbody></table>';
+        } else if (tab === 'descuentos') {
+            const data = await AdminAPI.detalleDescuentos(_histGuardiaId, mes, anio);
+            if (!data || !data.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin descuentos este mes</div>'; return; }
+            c.innerHTML = `<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Minutos</th><th>Monto</th><th>Descripción</th></tr></thead><tbody>` +
+                data.map(d => `<tr>
+                    <td>${d.fecha}</td>
+                    <td><span class="badge ${d.tipo==='falta'?'badge-error':d.tipo==='atraso'?'badge-warning':'badge-muted'}">${d.tipo}</span></td>
+                    <td>${d.minutos}</td>
+                    <td>Bs ${parseFloat(d.monto||0).toFixed(2)}</td>
+                    <td style="font-size:12px;color:var(--text-muted)">${d.descripcion||'—'}</td>
+                </tr>`).join('') + '</tbody></table>';
+        }
+    } catch(e) {
+        c.innerHTML = `<div style="padding:20px;text-align:center;color:#f87171">Error: ${e.message}</div>`;
+    }
+}
+
+// ══════════════════════════════════════════
+// PAPELERA — GUARDIAS INACTIVOS
+// ══════════════════════════════════════════
+async function loadInactivos() {
+    const c = document.getElementById('tablaInactivos');
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    try {
+        const data = await query('usuarios', 'rol=eq.guardia&activo=eq.0&select=id,nombre,apellido,cedula,turno,puesto,salario_base,fecha_registro&order=nombre.asc');
+        if (!data || !data.length) {
+            c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)"><i class="fas fa-check-circle" style="color:#34d399"></i> No hay guardias desactivados</div>';
+            return;
+        }
+        let html = `<table><thead><tr><th>Guardia</th><th>Cédula</th><th>Turno</th><th>Puesto</th><th>Salario</th><th>Acción</th></tr></thead><tbody>`;
+        data.forEach(g => {
+            html += `<tr class="inactivo-row">
+                <td><div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-weight:700">${g.nombre[0].toUpperCase()}</div>
+                    <div style="font-weight:600">${g.nombre} ${g.apellido}</div>
+                </div></td>
+                <td>${g.cedula}</td>
+                <td><span class="badge badge-muted">${g.turno}</span></td>
+                <td style="font-size:12px;color:var(--text-muted)">${g.puesto||'—'}</td>
+                <td>Bs ${parseFloat(g.salario_base||0).toFixed(2)}</td>
+                <td><button class="btn-sm btn-success" onclick="reactivarGuardia(${g.id},'${g.nombre}')">
+                    <i class="fas fa-user-check"></i> Reactivar
+                </button></td>
+            </tr>`;
+        });
+        c.innerHTML = html + '</tbody></table>';
+    } catch(e) {
+        c.innerHTML = `<div style="padding:20px;text-align:center;color:#f87171">Error: ${e.message}</div>`;
+    }
+}
+
+async function reactivarGuardia(id, nombre) {
+    if (!confirm(`¿Reactivar a ${nombre}?`)) return;
+    try {
+        await update('usuarios', { activo: 1 }, `id=eq.${id}`);
+        registrarLog('reactivar_guardia', `Reactivó al guardia ${nombre}`);
+        showToast(`${nombre} reactivado`);
+        loadInactivos();
+    } catch(e) { showToast('Error: '+e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════
+// LOG DE ACTIVIDAD
+// ══════════════════════════════════════════
+function registrarLog(tipo, descripcion) {
+    try {
+        const logs = JSON.parse(localStorage.getItem('esefip_log')||'[]');
+        logs.unshift({
+            tipo, descripcion,
+            admin: admin?.nombre + ' ' + admin?.apellido,
+            fecha: new Date().toISOString()
+        });
+        localStorage.setItem('esefip_log', JSON.stringify(logs.slice(0, 200)));
+    } catch(e) {}
+}
+
+function loadLog() {
+    const c = document.getElementById('listaLog');
+    const logs = JSON.parse(localStorage.getItem('esefip_log')||'[]');
+    if (!logs.length) {
+        c.innerHTML = '<div style="text-align:center;color:var(--text-muted)">Sin actividad registrada aún</div>';
+        return;
+    }
+    const iconos = {
+        crear_guardia:'create', actualizar_guardia:'edit', eliminar_guardia:'delete',
+        reactivar_guardia:'create', marcar_pago:'pay', generar_pagos:'pay',
+        subsanar_ronda:'edit', crear_qr:'create', marcar_novedad:'view'
+    };
+    c.innerHTML = logs.map(l => `
+        <div class="log-item">
+            <div class="log-dot ${iconos[l.tipo]||'view'}"></div>
+            <div style="flex:1">
+                <div style="font-size:14px">${l.descripcion}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+                    <i class="fas fa-user" style="color:var(--primary)"></i> ${l.admin} &nbsp;•&nbsp;
+                    <i class="fas fa-clock"></i> ${formatDate(l.fecha)}
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+// GRÁFICO PUNTUALIDAD EN REPORTES
+// ══════════════════════════════════════════
+async function cargarGrafPuntualidad(mes, anio) {
+    const panel = document.getElementById('panelPuntualidad');
+    const c     = document.getElementById('grafPuntualidad');
+    try {
+        const data = await AdminAPI.resumenDescuentos(mes, anio);
+        if (!data || !data.length) { panel.style.display='none'; return; }
+        panel.style.display = 'block';
+        // Ordenar por total descuentos desc
+        data.sort((a,b) => b.total_descuentos - a.total_descuentos);
+        const maxDesc = Math.max(...data.map(d => parseFloat(d.total_descuentos||0)), 1);
+        c.innerHTML = data.map(d => {
+            const desc  = parseFloat(d.total_descuentos||0);
+            const bono  = parseFloat(d.bono_relevo||0);
+            const pct   = Math.round((desc / maxDesc) * 100);
+            const color = pct > 60 ? '#ef4444' : pct > 30 ? '#f59e0b' : '#10b981';
+            return `<div style="margin-bottom:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <span style="font-size:13px;font-weight:600">${d.nombre} ${d.apellido}</span>
+                    <div style="text-align:right;font-size:12px">
+                        <span style="color:#f87171">-Bs ${desc.toFixed(2)}</span>
+                        ${bono > 0 ? `<span style="color:#34d399;margin-left:8px">+Bs ${bono.toFixed(2)}</span>` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;font-size:11px;color:var(--text-muted);margin-bottom:4px">
+                    <span><i class="fas fa-clock" style="color:#f59e0b"></i> ${d.min_atrasos||0} min atraso</span>
+                    <span><i class="fas fa-times-circle" style="color:#ef4444"></i> ${d.dias_falta||0} faltas</span>
+                    <span><i class="fas fa-route" style="color:#94a3b8"></i> ${Math.round(d.rondas_perdidas||0)} rondas perd.</span>
+                </div>
+                <div class="punch-bar">
+                    <div class="punch-bar-fill" style="width:${pct}%;background:${color}"></div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { panel.style.display='none'; }
+}
+
+// puntualidad se llama desde loadReporte directamente
+
+// Registrar logs en acciones existentes
+// Logs integrados directamente en las funciones originales
+
+// ══════════════════════════════════════════
+// FALTAS DE HOY
+// ══════════════════════════════════════════
+async function loadFaltasHoy() {
+    const c = document.getElementById('listaFaltasHoy');
+    try {
+        const guardias = await AdminAPI.listarGuardias();
+        const faltas = (guardias||[]).filter(g => g.activo==1 && parseInt(g.presente_hoy||0) === 0);
+        if (!faltas.length) {
+            c.innerHTML = '<div style="text-align:center;color:#34d399;padding:16px"><i class="fas fa-check-circle"></i> ¡Todos presentes hoy!</div>';
+            return;
+        }
+        c.innerHTML = faltas.map(g => `
+            <div class="hoy-item">
+                <div class="hoy-dot" style="background:#ef4444"></div>
+                <div style="flex:1">
+                    <div style="font-size:13px;font-weight:600">${g.nombre} ${g.apellido}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${g.puesto||g.turno} · CI: ${g.cedula}</div>
+                </div>
+                <button class="btn-sm btn-warning" style="font-size:11px;padding:4px 8px"
+                    onclick="openEntradaManualParaGuardia(${g.id},'${g.nombre} ${g.apellido}')">
+                    <i class="fas fa-hand-point-up"></i>
+                </button>
+            </div>`).join('');
+    } catch(e) { c.innerHTML = '<div style="color:#f87171;font-size:12px">Error cargando faltas</div>'; }
+}
+
+function openEntradaManualParaGuardia(id, nombre) {
+    openModal('modalEntradaManual');
+    // Pre-seleccionar el guardia
+    setTimeout(() => {
+        const sel = document.getElementById('manEntradaGuardia');
+        for (let opt of sel.options) { if (opt.value == id) { opt.selected=true; break; } }
+    }, 200);
+}
+
+// ══════════════════════════════════════════
+// PRÓXIMOS TURNOS
+// ══════════════════════════════════════════
+async function loadProxTurnos() {
+    const c = document.getElementById('listaProxTurnos');
+    try {
+        const guardias = await AdminAPI.listarGuardias();
+        const ahora = new Date();
+        const ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
+        const en3h = ahoraMin + 180;
+        const proximos = (guardias||[]).filter(g => {
+            if (!g.activo || !g.hora_inicio) return false;
+            const [hh,mm] = g.hora_inicio.split(':').map(Number);
+            const turnoMin = hh*60+mm;
+            return turnoMin > ahoraMin && turnoMin <= en3h;
+        }).sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+        if (!proximos.length) {
+            c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:16px;font-size:13px">Sin turnos en las próximas 3 horas</div>';
+            return;
+        }
+        c.innerHTML = proximos.map(g => {
+            const [hh,mm] = g.hora_inicio.split(':').map(Number);
+            const min = hh*60+mm - ahoraMin;
+            const label = min < 60 ? `en ${min} min` : `en ${Math.round(min/60)}h`;
+            return `<div class="turno-prox">
+                <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a3a6b,#2a4a8b);display:flex;align-items:center;justify-content:center;color:#D4A017;font-weight:700;flex-shrink:0">${g.nombre[0].toUpperCase()}</div>
+                <div style="flex:1">
+                    <div style="font-size:13px;font-weight:600">${g.nombre} ${g.apellido}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${g.puesto||g.turno}</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:13px;font-weight:700;color:var(--primary)">${g.hora_inicio.slice(0,5)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${label}</div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { c.innerHTML = '<div style="color:#f87171;font-size:12px">Error</div>'; }
+}
+
+// ══════════════════════════════════════════
+// ENTRADA MANUAL
+// ══════════════════════════════════════════
+async function initEntradaManual() {
+    const sel = document.getElementById('manEntradaGuardia');
+    const selCfg = document.getElementById('manualGuardiaId');
+    const selMsg = document.getElementById('msgGuardiaId');
+    const guardias = await AdminAPI.listarGuardias();
+    const opts = (guardias||[]).filter(g=>g.activo==1).map(g =>
+        `<option value="${g.id}">${g.nombre} ${g.apellido} (${g.puesto||g.turno})</option>`).join('');
+    if (sel) sel.innerHTML = opts;
+    if (selCfg) selCfg.innerHTML = opts;
+    if (selMsg) selMsg.innerHTML = '<option value="todos">📢 Todos los guardias</option>' + opts;
+}
+
+async function registrarEntradaManual() {
+    const guardiaId = document.getElementById('manEntradaGuardia').value;
+    const tipo      = document.getElementById('manEntradaTipo').value;
+    const hora      = document.getElementById('manEntradaHora').value;
+    const motivo    = document.getElementById('manEntradaMotivo').value || 'Registro manual por admin';
+    if (!guardiaId) { showToast('Selecciona un guardia','error'); return; }
+    try {
+        await rpc('sp_registrar_asistencia', {
+            p_usuario_id: parseInt(guardiaId),
+            p_tipo:       tipo,
+            p_latitud:    null, p_longitud: null,
+            p_direccion:  motivo, p_zona: 'Manual', p_ciudad: '', p_pais: '',
+            p_precision:  null, p_altitud: null,
+            p_metodo:     'manual', p_foto: null,
+            p_dispositivo: 'ADMIN_MANUAL'
+        });
+        // Telegram
+        const guardias = await AdminAPI.listarGuardias();
+        const g = (guardias||[]).find(x => x.id == guardiaId);
+        if (g) {
+            Telegram.sendMessage(
+                `${tipo==='entrada'?'🟢':'🔴'} <b>${tipo.toUpperCase()} MANUAL — ESEFIP</b>\n\n` +
+                `👤 ${g.nombre} ${g.apellido} | 🪪 ${g.cedula}\n` +
+                (g.puesto ? `🏢 ${g.puesto}\n` : '') +
+                `⏰ ${new Date().toLocaleString('es-ES')}\n` +
+                `📝 Motivo: ${motivo}\n` +
+                `👨‍💼 Registrado por admin: ${admin.nombre} ${admin.apellido}`
+            );
+        }
+        registrarLog('entrada_manual', `Registró ${tipo} manual de ${g?.nombre||guardiaId} — ${motivo}`);
+        showToast(`${tipo} manual registrada`);
+        closeModal('modalEntradaManual');
+        loadFaltasHoy();
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+// FILTRAR FALTAS HOY en asistencias
+// ══════════════════════════════════════════
+async function filtrarFaltasHoy() {
+    const c = document.getElementById('tablaAsistencias');
+    c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    try {
+        const guardias = await AdminAPI.listarGuardias();
+        const faltas = (guardias||[]).filter(g => g.activo==1 && parseInt(g.presente_hoy||0)===0);
+        if (!faltas.length) { c.innerHTML = '<div style="padding:20px;text-align:center;color:#34d399"><i class="fas fa-check-circle"></i> ¡Todos los guardias marcaron entrada hoy!</div>'; return; }
+        let html = `<table><thead><tr><th>Guardia</th><th>Cédula</th><th>Turno</th><th>Puesto</th><th>Hora Entrada</th><th>Acción</th></tr></thead><tbody>`;
+        faltas.forEach(g => {
+            html += `<tr style="background:rgba(239,68,68,0.05)">
+                <td><strong style="color:#f87171">${g.nombre} ${g.apellido}</strong></td>
+                <td>${g.cedula}</td>
+                <td><span class="badge badge-muted">${g.turno}</span></td>
+                <td>${g.puesto||'—'}</td>
+                <td style="color:#f87171">${(g.hora_inicio||'').slice(0,5)} <span style="font-size:11px">(no marcó)</span></td>
+                <td><button class="btn-sm btn-warning" style="font-size:11px" onclick="openEntradaManualParaGuardia(${g.id},'${g.nombre}')">
+                    <i class="fas fa-hand-point-up"></i> Manual
+                </button></td>
+            </tr>`;
+        });
+        c.innerHTML = html + '</tbody></table>';
+    } catch(e) { c.innerHTML = `<div style="padding:20px;color:#f87171">Error: ${e.message}</div>`; }
+}
+
+// ══════════════════════════════════════════
+// RESUMEN FINANCIERO
+// ══════════════════════════════════════════
+async function loadFinanciero() {
+    const mes  = parseInt(document.getElementById('finMes').value);
+    const anio = parseInt(document.getElementById('finAnio').value);
+    const c    = document.getElementById('tablaFinanciero');
+    c.innerHTML = '<div style="padding:20px;text-align:center"><i class="fas fa-spinner fa-spin"></i></div>';
+    try {
+        const data = await AdminAPI.listarPagos(mes, anio);
+        if (!data || !data.length) {
+            ['fin-base','fin-desc','fin-bonos','fin-pagar','fin-pagado','fin-pendiente'].forEach(id => {
+                document.getElementById(id).textContent = 'Bs 0';
+            });
+            c.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">Sin pagos generados. Usa "Generar Pagos" en la pestaña de Pagos.</div>';
+            return;
+        }
+        const totBase     = data.reduce((s,p) => s+parseFloat(p.salario_base||0), 0);
+        const totDesc     = data.reduce((s,p) => s+parseFloat(p.descuentos||0), 0);
+        const totBonos    = data.reduce((s,p) => s+parseFloat(p.bonos||0), 0);
+        const totPagar    = data.reduce((s,p) => s+parseFloat(p.total||0), 0);
+        const totPagado   = data.filter(p=>p.estado==='pagado').reduce((s,p) => s+parseFloat(p.total||0), 0);
+        const totPend     = data.filter(p=>p.estado==='pendiente').reduce((s,p) => s+parseFloat(p.total||0), 0);
+
+        document.getElementById('fin-base').textContent     = 'Bs '+totBase.toFixed(2);
+        document.getElementById('fin-desc').textContent     = '-Bs '+totDesc.toFixed(2);
+        document.getElementById('fin-bonos').textContent    = '+Bs '+totBonos.toFixed(2);
+        document.getElementById('fin-pagar').textContent    = 'Bs '+totPagar.toFixed(2);
+        document.getElementById('fin-pagado').textContent   = 'Bs '+totPagado.toFixed(2);
+        document.getElementById('fin-pendiente').textContent= 'Bs '+totPend.toFixed(2);
+
+        let html = `<table><thead><tr><th>Guardia</th><th>Base</th><th>Descuentos</th><th>Bonos</th><th>Total</th><th>Estado</th></tr></thead><tbody>`;
+        data.forEach(p => {
+            html += `<tr>
+                <td><strong>${p.nombre} ${p.apellido}</strong><div style="font-size:11px;color:var(--text-muted)">${p.cedula}</div></td>
+                <td>Bs ${parseFloat(p.salario_base).toFixed(2)}</td>
+                <td style="color:#f87171">-Bs ${parseFloat(p.descuentos||0).toFixed(2)}</td>
+                <td style="color:#34d399">+Bs ${parseFloat(p.bonos||0).toFixed(2)}</td>
+                <td style="font-weight:700;color:var(--primary)">Bs ${parseFloat(p.total||0).toFixed(2)}</td>
+                <td><span class="badge ${p.estado==='pagado'?'badge-success':'badge-warning'}">${p.estado}</span></td>
+            </tr>`;
+        });
+        c.innerHTML = html + '</tbody></table>';
+    } catch(e) { c.innerHTML = `<div style="padding:20px;color:#f87171">Error: ${e.message}</div>`; }
+}
+
+// ══════════════════════════════════════════
+// CONFIGURACIÓN
+// ══════════════════════════════════════════
+function initConfig() {
+    // Cargar mensaje de bienvenida guardado
+    const bienvenida = localStorage.getItem('esefip_bienvenida') || '';
+    document.getElementById('cfgBotBienvenida').value = bienvenida;
+    // Cargar guardias en selects de config
+    initEntradaManual();
+    fillMesAnio('finMes','finAnio');
+}
+
+async function cambiarPassword() {
+    const actual = document.getElementById('cfgPassActual').value;
+    const nueva  = document.getElementById('cfgPassNueva').value;
+    if (!actual || !nueva) { showToast('Completa ambos campos','error'); return; }
+    if (nueva.length < 6)  { showToast('La contraseña debe tener al menos 6 caracteres','error'); return; }
+    try {
+        // Verificar contraseña actual
+        const check = await AdminAPI.login(admin.cedula, actual);
+        if (!check) { showToast('Contraseña actual incorrecta','error'); return; }
+        await update('usuarios', { password: nueva }, `id=eq.${admin.id}`);
+        registrarLog('cambiar_password', 'Cambió su contraseña');
+        showToast('Contraseña actualizada correctamente');
+        document.getElementById('cfgPassActual').value = '';
+        document.getElementById('cfgPassNueva').value  = '';
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+function guardarBienvenida() {
+    const msg = document.getElementById('cfgBotBienvenida').value.trim();
+    localStorage.setItem('esefip_bienvenida', msg);
+    showToast('Mensaje de bienvenida guardado');
+}
+
+async function probarBienvenida() {
+    const msg = document.getElementById('cfgBotBienvenida').value.trim() ||
+        '🛡️ <b>ESEFIP</b> — Sistema activo y funcionando correctamente.';
+    await Telegram.sendMessage(msg);
+    showToast('Mensaje enviado al bot');
+}
+
+async function enviarMensajeGuardia() {
+    const destId = document.getElementById('msgGuardiaId').value;
+    const texto  = document.getElementById('msgTexto').value.trim();
+    if (!texto) { showToast('Escribe un mensaje','error'); return; }
+
+    const guardias = await AdminAPI.listarGuardias();
+    const activos  = (guardias||[]).filter(g => g.activo==1);
+
+    if (destId === 'todos') {
+        // Mensaje a todos — un solo mensaje con lista
+        const lista = activos.map(g => `• ${g.nombre} ${g.apellido}`).join('\n');
+        await Telegram.sendMessage(
+            `📢 <b>MENSAJE ADMIN — ESEFIP</b>\n` +
+            `👨‍💼 ${admin.nombre} ${admin.apellido}\n\n` +
+            `${texto}\n\n<i>Enviado a: todos los guardias (${activos.length})</i>`
+        );
+        registrarLog('mensaje_guardias', `Envió mensaje a todos: "${texto.slice(0,40)}"`);
+        showToast(`Mensaje enviado a todos los guardias`);
+    } else {
+        const g = activos.find(x => x.id == destId);
+        await Telegram.sendMessage(
+            `📩 <b>MENSAJE PARA ${(g?.nombre||'Guardia').toUpperCase()} — ESEFIP</b>\n` +
+            `👨‍💼 De: ${admin.nombre} ${admin.apellido}\n\n${texto}`
+        );
+        registrarLog('mensaje_guardias', `Envió mensaje a ${g?.nombre}: "${texto.slice(0,40)}"`);
+        showToast(`Mensaje enviado a ${g?.nombre||'guardia'}`);
+    }
+    document.getElementById('msgTexto').value = '';
+}
+
+async function aplicarManual() {
+    const guardiaId = parseInt(document.getElementById('manualGuardiaId').value);
+    const tipo      = document.getElementById('manualTipo').value;
+    const monto     = parseFloat(document.getElementById('manualMonto').value);
+    const motivo    = document.getElementById('manualMotivo').value.trim();
+    if (!guardiaId || !monto || !motivo) { showToast('Completa todos los campos','error'); return; }
+
+    const now   = new Date();
+    const mes   = now.getMonth()+1, anio = now.getFullYear();
+    const fecha = now.toISOString().split('T')[0];
+
+    try {
+        if (tipo === 'descuento') {
+            await insert('descuentos_diarios', {
+                usuario_id: guardiaId, fecha,
+                tipo: 'atraso', minutos: 0,
+                monto: monto, descripcion: `Manual: ${motivo}`
+            });
+        } else {
+            // Bono — actualizar en pagos si existe, sino crear nota
+            const pagos = await query('pagos', `usuario_id=eq.${guardiaId}&mes=eq.${mes}&anio=eq.${anio}&select=id,bonos`);
+            if (pagos && pagos[0]) {
+                const nuevosBonos = parseFloat(pagos[0].bonos||0) + monto;
+                await update('pagos', { bonos: nuevosBonos }, `id=eq.${pagos[0].id}`);
+            }
+        }
+        const guardias = await AdminAPI.listarGuardias();
+        const g = (guardias||[]).find(x => x.id==guardiaId);
+        Telegram.sendMessage(
+            `${tipo==='descuento'?'➖':'➕'} <b>${tipo.toUpperCase()} MANUAL — ESEFIP</b>\n\n` +
+            `👤 ${g?.nombre||''} ${g?.apellido||''}\n` +
+            `💰 Bs ${monto.toFixed(2)}\n` +
+            `📝 ${motivo}\n` +
+            `👨‍💼 Aplicado por: ${admin.nombre} ${admin.apellido}`
+        );
+        registrarLog('ajuste_manual', `Aplicó ${tipo} manual de Bs ${monto} a ${g?.nombre}: ${motivo}`);
+        showToast(`${tipo === 'descuento' ? 'Descuento' : 'Bono'} aplicado`);
+        document.getElementById('manualMonto').value = '';
+        document.getElementById('manualMotivo').value = '';
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+// FOTO PERFIL Y QR BANCO
+// ══════════════════════════════════════════
+let _fotoPerfil = null;
+let _fotoQRBanco = null;
+
+function previsualizarFotoPerfil(input) {
+    const file = input.files[0];
+    if (!file) return;
+    _fotoPerfil = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('avatarPreview').src = e.target.result;
+        document.getElementById('avatarPreview').style.display = 'block';
+        document.getElementById('avatarPlaceholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+function previsualizarQRBanco(input) {
+    const file = input.files[0];
+    if (!file) return;
+    _fotoQRBanco = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('qrBancoPreview').src = e.target.result;
+        document.getElementById('qrBancoWrap').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function verQRBancoGrande(url, nombre) {
+    const img = document.getElementById('qrBancoGrandeImg');
+    const src = url || document.getElementById('qrBancoActualImg').src;
+    img.src = src;
+    document.getElementById('qrBancoNombre').textContent = nombre || 'Guardia';
+    document.getElementById('qrBancoDescLink').href = src;
+    openModal('modalQRBancoGrande');
+}
+
+function cargarFotosEnModal(g) {
+    // Foto perfil
+    const placeholder = document.getElementById('avatarPlaceholder');
+    const preview = document.getElementById('avatarPreview');
+    if (g.foto_perfil) {
+        const url = Storage.url(g.foto_perfil);
+        preview.src = url;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+    } else {
+        preview.style.display = 'none';
+        placeholder.style.display = 'flex';
+        placeholder.textContent = g.nombre?.[0]?.toUpperCase() || '?';
+    }
+    // QR banco
+    if (g.foto_qr_banco) {
+        const urlQR = Storage.url(g.foto_qr_banco);
+        document.getElementById('qrBancoActualImg').src = urlQR;
+        document.getElementById('qrBancoActual').style.display = 'flex';
+        document.getElementById('qrBancoActual').style.alignItems = 'center';
+    } else {
+        document.getElementById('qrBancoActual').style.display = 'none';
+    }
+    document.getElementById('qrBancoWrap').style.display = 'none';
+    document.getElementById('inputFotoPerfil').value = '';
+    document.getElementById('inputQRBanco').value = '';
+    _fotoPerfil  = null;
+    _fotoQRBanco = null;
+}
+
+// Extender guardarGuardia para subir fotos
+const _guardarGuardiaBase = guardarGuardia;
+async function guardarGuardia() {
+    await _guardarGuardiaBase();
+    // Subir fotos si hay nuevas
+    const id = document.getElementById('guardiaId').value;
+    if (id && (_fotoPerfil || _fotoQRBanco)) {
+        try {
+            let fotoPerfil = undefined, fotoQRBanco = undefined;
+            if (_fotoPerfil)  fotoPerfil  = await Storage.uploadFotoPerfil(id, _fotoPerfil);
+            if (_fotoQRBanco) fotoQRBanco = await Storage.uploadFotoQRBanco(id, _fotoQRBanco);
+            await AdminAPI.actualizarFotoGuardia(id, fotoPerfil, fotoQRBanco);
+        } catch(e) { console.warn('Error subiendo fotos:', e.message); }
+    }
+}
+
+// Extender editarGuardia para cargar fotos
+const _editarGuardiaBase = editarGuardia;
+function editarGuardia(g) {
+    _editarGuardiaBase(g);
+    setTimeout(() => cargarFotosEnModal(g), 100);
+}
+
+// Extender openModalGuardia para limpiar fotos
+const _openModalGuardiaBase = openModalGuardia;
+function openModalGuardia() {
+    _openModalGuardiaBase();
+    document.getElementById('avatarPreview').style.display = 'none';
+    document.getElementById('avatarPlaceholder').style.display = 'flex';
+    document.getElementById('avatarPlaceholder').textContent = '?';
+    document.getElementById('qrBancoActual').style.display = 'none';
+    document.getElementById('qrBancoWrap').style.display = 'none';
+    _fotoPerfil = null; _fotoQRBanco = null;
+}
+
+// Botón ver QR banco desde tabla guardias
+function abrirQRBanco(url, nombre) {
+    verQRBancoGrande(Storage.url(url), nombre);
+}
+
+// ══════════════════════════════════════════
+// PERMISOS
+// ══════════════════════════════════════════
+let _permisoActual = null;
+
+async function loadPermisos(estado) {
+    const c = document.getElementById('listaPermisos');
+    c.innerHTML = '<div style="text-align:center;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>';
+    try {
+        const data = await AdminAPI.listarPermisos(estado);
+        const pendientes = (data||[]).filter(p => p.estado === 'pendiente').length;
+        const badge = document.getElementById('permisosBadge');
+        if (pendientes > 0) { badge.textContent = pendientes; badge.style.display = 'inline'; }
+        else badge.style.display = 'none';
+
+        if (!data || !data.length) {
+            c.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">Sin solicitudes</div>';
+            return;
+        }
+        c.innerHTML = data.map(p => `
+            <div class="permiso-card">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                    <div>
+                        <div style="font-weight:600;font-size:14px">${p.nombre} ${p.apellido}</div>
+                        <div style="font-size:12px;color:var(--text-muted)">CI: ${p.cedula}</div>
+                    </div>
+                    <span class="permiso-estado permiso-${p.estado}">${p.estado}</span>
+                </div>
+                <div style="font-size:13px;margin-bottom:8px">
+                    <i class="fas fa-calendar" style="color:var(--primary)"></i>
+                    <strong>${p.fecha_desde}</strong> → <strong>${p.fecha_hasta}</strong>
+                </div>
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">
+                    <i class="fas fa-comment"></i> ${p.motivo}
+                </div>
+                ${p.respuesta ? `<div style="font-size:12px;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;margin-bottom:8px">
+                    <i class="fas fa-reply" style="color:var(--primary)"></i> ${p.respuesta}</div>` : ''}
+                ${p.estado === 'pendiente' ? `
+                <div style="display:flex;gap:8px">
+                    <button class="btn-sm btn-success" style="flex:1" onclick='abrirModalPermiso(${JSON.stringify(p)})'>
+                        <i class="fas fa-reply"></i> Responder
+                    </button>
+                </div>` : ''}
+            </div>`).join('');
+    } catch(e) {
+        c.innerHTML = `<div style="color:#f87171;padding:20px">Error: ${e.message}</div>`;
+    }
+}
+
+function abrirModalPermiso(p) {
+    _permisoActual = p;
+    document.getElementById('permisoId').value = p.id;
+    document.getElementById('permisoRespuesta').value = '';
+    document.getElementById('permisoDetalle').innerHTML = `
+        <div style="font-weight:600;margin-bottom:6px">👤 ${p.nombre} ${p.apellido} | 🪪 ${p.cedula}</div>
+        <div>📅 <strong>${p.fecha_desde}</strong> → <strong>${p.fecha_hasta}</strong></div>
+        <div style="margin-top:6px">📝 ${p.motivo}</div>`;
+    openModal('modalPermiso');
+}
+
+async function responderPermiso(estado) {
+    const id       = document.getElementById('permisoId').value;
+    const respuesta = document.getElementById('permisoRespuesta').value.trim();
+    try {
+        await AdminAPI.responderPermiso(id, estado, respuesta, admin.id);
+        registrarLog('responder_permiso', `${estado === 'aprobado' ? 'Aprobó' : 'Rechazó'} permiso de ${_permisoActual?.nombre}`);
+        showToast(`Permiso ${estado}`);
+        closeModal('modalPermiso');
+        loadPermisos();
+    } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════
+// ETAPAS EN TABLAS
+// ══════════════════════════════════════════
+function renderEtapas(etapaActual, labels) {
+    const n = labels.length;
+    return `<div class="etapas-wrap">` +
+        labels.map((label, i) => {
+            const num = i + 1;
+            const cls = num < etapaActual ? 'done' : num === etapaActual ? 'active' : 'pending';
+            const lineCls = num < etapaActual ? 'done' : 'pending';
+            const icon = num < etapaActual ? '<i class="fas fa-check" style="font-size:10px"></i>' : num;
+            return `<div class="etapa-step">
+                ${i < n-1 ? `<div class="etapa-line ${lineCls}"></div>` : ''}
+                <div class="etapa-circle ${cls}">${icon}</div>
+                <div class="etapa-label">${label}</div>
+            </div>`;
+        }).join('') + `</div>`;
+}
+
+// ══════════════════════════════════════════
+// INIT — cargar badge de permisos pendientes al entrar
+// ══════════════════════════════════════════
+
+// ── INIT CARGA ──
+loadDashboard();
+loadCharts();
+// Cargar badge permisos pendientes
+AdminAPI.listarPermisos('pendiente').then(data => {
+    const n = (data||[]).length;
+    const badge = document.getElementById('permisosBadge');
+    if (n > 0) { badge.textContent = n; badge.style.display = 'inline'; }
+});
+</script>
+</body>
+</html>
